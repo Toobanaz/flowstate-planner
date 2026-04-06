@@ -14,7 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_logs: {
+        Row: {
+          created_at: string
+          energy_level: number
+          id: string
+          mood: string
+          notes: string | null
+        }
+        Insert: {
+          created_at?: string
+          energy_level: number
+          id?: string
+          mood: string
+          notes?: string | null
+        }
+        Update: {
+          created_at?: string
+          energy_level?: number
+          id?: string
+          mood?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          ai_classified: boolean | null
+          completed: boolean | null
+          created_at: string
+          energy_required: number | null
+          id: string
+          schedule_preference: string | null
+          tag: string | null
+          title: string
+        }
+        Insert: {
+          ai_classified?: boolean | null
+          completed?: boolean | null
+          created_at?: string
+          energy_required?: number | null
+          id?: string
+          schedule_preference?: string | null
+          tag?: string | null
+          title: string
+        }
+        Update: {
+          ai_classified?: boolean | null
+          completed?: boolean | null
+          created_at?: string
+          energy_required?: number | null
+          id?: string
+          schedule_preference?: string | null
+          tag?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

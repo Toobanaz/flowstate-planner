@@ -1,5 +1,5 @@
-import { Task } from "@/lib/flowEngine";
-import { X, Brain, Palette, FileText, Users, ShoppingBag } from "lucide-react";
+import { Task, getTaskEnergy } from "@/lib/flowEngine";
+import { X, Brain, Palette, FileText, Users, ShoppingBag, Sparkles, Check } from "lucide-react";
 
 const tagStyles: Record<string, string> = {
   "Deep Work": "tag-deep-work",
@@ -20,17 +20,45 @@ const tagIcons: Record<string, React.ReactNode> = {
 interface TaskCardProps {
   task: Task;
   onRemove?: (id: string) => void;
+  onToggleComplete?: (id: string, completed: boolean) => void;
 }
 
-export function TaskCard({ task, onRemove }: TaskCardProps) {
+export function TaskCard({ task, onRemove, onToggleComplete }: TaskCardProps) {
   return (
-    <div className="flow-card !p-4 flex items-center justify-between gap-3 group">
+    <div className={`flow-card !p-4 flex items-center justify-between gap-3 group transition-all ${task.completed ? "opacity-60" : ""}`}>
       <div className="flex items-center gap-3 min-w-0">
-        <span className="text-muted-foreground">{tagIcons[task.tag]}</span>
-        <span className="text-sm font-medium truncate">{task.title}</span>
+        {onToggleComplete && (
+          <button
+            onClick={() => onToggleComplete(task.id, !task.completed)}
+            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+              task.completed
+                ? "bg-primary border-primary text-primary-foreground"
+                : "border-muted-foreground/30 hover:border-primary"
+            }`}
+          >
+            {task.completed && <Check className="w-3 h-3" />}
+          </button>
+        )}
+        <span className="text-muted-foreground">
+          {task.tag ? tagIcons[task.tag] : <FileText className="w-3.5 h-3.5" />}
+        </span>
+        <span className={`text-sm font-medium truncate ${task.completed ? "line-through" : ""}`}>
+          {task.title}
+        </span>
       </div>
       <div className="flex items-center gap-2 shrink-0">
-        <span className={`tag-badge ${tagStyles[task.tag]}`}>{task.tag}</span>
+        {task.ai_classified && (
+          <span className="flex items-center gap-1 text-xs text-primary/70">
+            <Sparkles className="w-3 h-3" />
+            AI
+          </span>
+        )}
+        {task.tag && (
+          <span className={`tag-badge ${tagStyles[task.tag]}`}>{task.tag}</span>
+        )}
+        {task.schedule_preference && (
+          <span className="text-xs text-muted-foreground capitalize">{task.schedule_preference}</span>
+        )}
         {onRemove && (
           <button
             onClick={() => onRemove(task.id)}

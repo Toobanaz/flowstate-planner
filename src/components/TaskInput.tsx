@@ -1,27 +1,20 @@
 import { useState } from "react";
-import { TaskTag, generateId, Task } from "@/lib/flowEngine";
-import { Plus } from "lucide-react";
+import { Task, generateId } from "@/lib/flowEngine";
+import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const tags: TaskTag[] = ["Deep Work", "Creative", "Admin", "Social", "Errands"];
-
 interface TaskInputProps {
-  onAdd: (task: Task) => void;
+  onAdd: (title: string) => void;
+  isClassifying?: boolean;
 }
 
-export function TaskInput({ onAdd }: TaskInputProps) {
+export function TaskInput({ onAdd, isClassifying }: TaskInputProps) {
   const [title, setTitle] = useState("");
-  const [tag, setTag] = useState<TaskTag>("Admin");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
-    onAdd({
-      id: generateId(),
-      title: title.trim(),
-      tag,
-      createdAt: new Date().toISOString(),
-    });
+    if (!title.trim() || isClassifying) return;
+    onAdd(title.trim());
     setTitle("");
   };
 
@@ -32,21 +25,13 @@ export function TaskInput({ onAdd }: TaskInputProps) {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Add a task…"
+          placeholder="Add a task… (AI will classify it ✨)"
           className="w-full rounded-xl border border-input bg-cream px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          disabled={isClassifying}
         />
       </div>
-      <select
-        value={tag}
-        onChange={(e) => setTag(e.target.value as TaskTag)}
-        className="rounded-xl border border-input bg-cream px-3 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-      >
-        {tags.map((t) => (
-          <option key={t} value={t}>{t}</option>
-        ))}
-      </select>
-      <Button type="submit" size="icon" className="rounded-xl h-[46px] w-[46px] shrink-0">
-        <Plus className="w-5 h-5" />
+      <Button type="submit" size="icon" className="rounded-xl h-[46px] w-[46px] shrink-0" disabled={isClassifying || !title.trim()}>
+        {isClassifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
       </Button>
     </form>
   );
