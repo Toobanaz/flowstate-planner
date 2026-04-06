@@ -7,6 +7,26 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+type DataRow = {
+  created_at: string;
+};
+
+type DailyLogRow = DataRow & {
+  energy_level: number;
+  mood: string;
+  notes?: string | null;
+};
+
+type TaskRow = DataRow & {
+  title: string;
+  tag?: string | null;
+  energy_required?: number | null;
+  effort_level?: string | null;
+  completed?: boolean | null;
+};
+
+type JsonObject = Record<string, unknown>;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -18,7 +38,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch last 7 days of logs
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -35,33 +54,64 @@ serve(async (req) => {
         .order("created_at", { ascending: false }),
     ]);
 
-    const logs = logsResult.data || [];
-    const tasks = tasksResult.data || [];
+    if (logsResult.error) throw logsResult.error;
+    if (tasksResult.error) throw tasksResult.error;
 
-    if (logs.length === 0 && tasks.length === 0) {
-      return new Response(
-        JSON.stringify({
-          insights: [
-            {
-              emoji: "🌱",
-              title: "Just Getting Started",
-              text: "Use the app for a few days and come back for personalized insights!",
-            },
-          ],
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    const logs = (logsResult.data || []) as DailyLogRow[];
+    const tasks = (tasksResult.data || []) as TaskRow[];
+    const dataDays = new Set(
+      [...logs, ...tasks].map((item) => new Date(item.created_at).toISOString().slice(0, 10))
+    );
+
+    if (dataDays.size < 3) {
+      return jsonResponse({
+        insights: [
+          {
+            emoji: "\uD83C\uDF31",
+            title: "Patterns Need Time",
+            text: "Use FlowState for at least 3 different days, then I can spot more meaningful energy patterns.",
+          },
+        ],
+      });
     }
 
-    const prompt = `Analyze this user's productivity patterns from the last 7 days.
+    const weeklyData = {
+      energy_logs: logs.map((log) => ({
+        energy: log.energy_level,
+        mood: log.mood,
+        notes: log.notes,
+        date: log.created_at,
+      })),
+      completed_tasks: tasks
+        .filter((task) => task.completed)
+        .map((task) => ({
+          title: task.title,
+          category: task.tag,
+          energy_required: task.energy_required,
+          effort_level: task.effort_level,
+          date: task.created_at,
+        })),
+      moods: logs.map((log) => ({ mood: log.mood, date: log.created_at })),
+    };
 
-Daily Logs (energy 1-5, mood):
-${JSON.stringify(logs.map((l: any) => ({ energy: l.energy_level, mood: l.mood, date: l.created_at })))}
+    const prompt = `Analyze this user's productivity patterns.
 
-Tasks (completed status, category, energy required):
-${JSON.stringify(tasks.map((t: any) => ({ title: t.title, tag: t.tag, energy: t.energy_required, completed: t.completed, date: t.created_at })))}
+Data:
+${JSON.stringify(weeklyData)}
 
-Give 2-3 short, helpful, encouraging insights. Keep each insight to 1-2 sentences. Be practical and kind.`;
+Give 2 short insights:
+- One about energy patterns
+- One actionable suggestion
+
+Keep it concise and encouraging.
+
+Return ONLY valid JSON:
+{
+  "insights": [
+    { "emoji": "single emoji", "title": "Energy Pattern", "text": "..." },
+    { "emoji": "single emoji", "title": "Try This", "text": "..." }
+  ]
+}`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -74,79 +124,65 @@ Give 2-3 short, helpful, encouraging insights. Keep each insight to 1-2 sentence
         messages: [
           {
             role: "system",
-            content: "You are a kind, insightful productivity coach. Return structured insights using the provided tool.",
+            content: "You are a kind, concise productivity coach. Return only valid JSON with no markdown.",
           },
           { role: "user", content: prompt },
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "return_insights",
-              description: "Return productivity insights",
-              parameters: {
-                type: "object",
-                properties: {
-                  insights: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        emoji: { type: "string", description: "A single emoji" },
-                        title: { type: "string", description: "Short title, 3-5 words" },
-                        text: { type: "string", description: "1-2 sentence insight" },
-                      },
-                      required: ["emoji", "title", "text"],
-                      additionalProperties: false,
-                    },
-                  },
-                },
-                required: ["insights"],
-                additionalProperties: false,
-              },
-            },
-          },
-        ],
-        tool_choice: { type: "function", function: { name: "return_insights" } },
+        response_format: { type: "json_object" },
       }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited, please try again later." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Failed to generate insights" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    if (!response.ok) return handleGatewayError(response, "Failed to generate insights");
 
     const data = await response.json();
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (!toolCall) {
-      return new Response(JSON.stringify({ error: "No insights returned" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const parsed = parseJsonContent(data.choices?.[0]?.message?.content);
+    const insights = normalizeInsights(parsed);
 
-    const result = JSON.parse(toolCall.function.arguments);
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return jsonResponse({ insights });
   } catch (e) {
     console.error("get-insights error:", e);
-    return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonResponse({ error: e instanceof Error ? e.message : "Unknown error" }, 500);
   }
 });
+
+function normalizeInsights(input: JsonObject) {
+  if (!Array.isArray(input.insights)) throw new Error("No insights returned");
+
+  return input.insights
+    .slice(0, 2)
+    .map((insight, index: number) => {
+      const insightObject = isJsonObject(insight) ? insight : {};
+      return {
+        emoji: String(insightObject.emoji || (index === 0 ? "\u26A1" : "\uD83C\uDF3F")),
+        title: String(insightObject.title || (index === 0 ? "Energy Pattern" : "Try This")),
+        text: String(insightObject.text || "").trim(),
+      };
+    })
+    .filter((insight) => insight.text.length > 0);
+}
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseJsonContent(content: string | null | undefined) {
+  if (!content) throw new Error("No insights returned");
+  const cleaned = content.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "");
+  return JSON.parse(cleaned);
+}
+
+async function handleGatewayError(response: Response, fallbackMessage: string) {
+  if (response.status === 429) return jsonResponse({ error: "Rate limited, please try again later." }, 429);
+  if (response.status === 402) return jsonResponse({ error: "AI credits exhausted. Please add funds." }, 402);
+
+  const text = await response.text();
+  console.error("AI gateway error:", response.status, text);
+  return jsonResponse({ error: fallbackMessage }, 500);
+}
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}

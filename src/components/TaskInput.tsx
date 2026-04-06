@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Task, generateId } from "@/lib/flowEngine";
 import { Plus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -25,7 +24,7 @@ export function TaskInput({ onAdd, isClassifying }: TaskInputProps) {
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Add a task… (AI will classify it ✨)"
+          placeholder="Add a task... (AI will classify it ✨)"
           className="w-full rounded-xl border border-input bg-cream px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           disabled={isClassifying}
         />

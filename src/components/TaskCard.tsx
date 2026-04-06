@@ -35,6 +35,7 @@ export function TaskCard({ task, onRemove, onToggleComplete }: TaskCardProps) {
                 ? "bg-primary border-primary text-primary-foreground"
                 : "border-muted-foreground/30 hover:border-primary"
             }`}
+            aria-label={task.completed ? "Mark task incomplete" : "Mark task complete"}
           >
             {task.completed && <Check className="w-3 h-3" />}
           </button>
@@ -50,12 +51,16 @@ export function TaskCard({ task, onRemove, onToggleComplete }: TaskCardProps) {
         {task.ai_classified && (
           <span className="flex items-center gap-1 text-xs text-primary/70">
             <Sparkles className="w-3 h-3" />
-            AI
+            ✨ AI Enhanced
           </span>
         )}
         {task.tag && (
           <span className={`tag-badge ${tagStyles[task.tag]}`}>{task.tag}</span>
         )}
+        {task.effort_level && (
+          <span className="text-xs text-muted-foreground">{task.effort_level} effort</span>
+        )}
+        <span className="text-xs text-muted-foreground">Energy {getTaskEnergy(task)}/5</span>
         {task.schedule_preference && (
           <span className="text-xs text-muted-foreground capitalize">{task.schedule_preference}</span>
         )}
@@ -63,6 +68,7 @@ export function TaskCard({ task, onRemove, onToggleComplete }: TaskCardProps) {
           <button
             onClick={() => onRemove(task.id)}
             className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+            aria-label="Remove task"
           >
             <X className="w-4 h-4" />
           </button>

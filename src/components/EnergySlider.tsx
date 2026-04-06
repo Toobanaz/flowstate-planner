@@ -19,7 +19,7 @@ export function EnergySlider({ value, onChange }: EnergySliderProps) {
       </div>
       <Slider
         value={[value]}
-        onValueChange={([v]) => onChange(v)}
+        onValueChange={([nextValue]) => onChange(nextValue)}
         min={1}
         max={5}
         step={1}

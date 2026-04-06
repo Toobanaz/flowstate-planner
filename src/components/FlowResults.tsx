@@ -1,6 +1,6 @@
 import { FlowResult, UserState } from "@/lib/flowEngine";
 import { TaskCard } from "./TaskCard";
-import { CheckCircle2, Clock, Ban, Sun, CloudSun, Moon } from "lucide-react";
+import { CheckCircle2, Clock, Ban, Sun, CloudSun, Moon, Sparkles, AlertTriangle } from "lucide-react";
 
 interface FlowResultsProps {
   result: FlowResult;
@@ -10,11 +10,11 @@ interface FlowResultsProps {
 const emptyMessages: Record<string, { title: string; text: string }> = {
   doNow: {
     title: "Take it easy",
-    text: "You're low on energy. Start small — try adding a 5-minute task 🌱",
+    text: "You're low on energy. Start small - try adding a 5-minute task 🌱",
   },
   doLater: {
     title: "All clear",
-    text: "Nothing to postpone — you're on top of things! ✨",
+    text: "Nothing to postpone - you're on top of things! ✨",
   },
   avoid: {
     title: "Looking good",
@@ -56,12 +56,12 @@ const timelineIcons = {
 };
 
 const timelineLabels = {
-  morning: "Morning — Peak Energy",
-  afternoon: "Afternoon — Steady Focus",
-  evening: "Evening — Wind Down",
+  morning: "Morning - Peak Energy",
+  afternoon: "Afternoon - Steady Focus",
+  evening: "Evening - Wind Down",
 };
 
-export function FlowResults({ result, userState }: FlowResultsProps) {
+export function FlowResults({ result }: FlowResultsProps) {
   const hasTimeline =
     result.timeline.morning.length > 0 ||
     result.timeline.afternoon.length > 0 ||
@@ -74,10 +74,31 @@ export function FlowResults({ result, userState }: FlowResultsProps) {
         <p className="text-sm text-muted-foreground mt-1">Based on how you're feeling</p>
       </div>
 
-      {/* Timeline */}
+      {result.aiSuggestion && (
+        <div className="flow-card space-y-3 animate-fade-up-delay-1 border border-primary/10 bg-accent/40">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-semibold text-foreground">AI Micro-Suggestion</h3>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-primary">💡 Try this first...</p>
+              <p className="text-sm text-muted-foreground mt-1">{result.aiSuggestion.try_first}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-amber-700 flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Avoid this for now...
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">{result.aiSuggestion.avoid_now}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {hasTimeline && (
         <div className="flow-card space-y-4 animate-fade-up-delay-1">
-          <h3 className="text-sm font-semibold text-foreground">Suggested Timeline for Today</h3>
+          <h3 className="text-sm font-semibold text-foreground">Suggested Timeline</h3>
           {(["morning", "afternoon", "evening"] as const).map((slot) => {
             const tasks = result.timeline[slot];
             if (tasks.length === 0) return null;
@@ -101,7 +122,6 @@ export function FlowResults({ result, userState }: FlowResultsProps) {
         </div>
       )}
 
-      {/* Category sections */}
       {sections.map(({ key, title, icon, description, color, delay }) => {
         const tasks = result[key];
         const empty = emptyMessages[key];

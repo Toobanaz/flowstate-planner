@@ -1,8 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { Task, UserState, FlowResult, Insight, planFlow } from "@/lib/flowEngine";
+import { Task, UserState, FlowResult, Insight, SchedulePreference, planFlow } from "@/lib/flowEngine";
 import {
-  fetchTasks, createTask, deleteTask, toggleTaskComplete,
-  updateTaskClassification, classifyTaskAI, saveDailyLog, getInsightsAI,
+  fetchTasks,
+  createTask,
+  deleteTask,
+  toggleTaskComplete,
+  updateTaskClassification,
+  classifyTaskAI,
+  saveDailyLog,
+  getInsightsAI,
+  planFlowAI,
+  updateTaskSchedules,
 } from "@/lib/api";
 import { CheckInCard } from "@/components/CheckInCard";
 import { TaskInput } from "@/components/TaskInput";
@@ -22,7 +30,6 @@ export default function Index() {
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(true);
 
-  // Load tasks from DB on mount
   useEffect(() => {
     fetchTasks()
       .then(setTasks)
@@ -36,26 +43,35 @@ export default function Index() {
   const addTask = useCallback(async (title: string) => {
     setIsClassifying(true);
     try {
-      // Create task in DB first
       const newTask = await createTask(title);
       setTasks((prev) => [newTask, ...prev]);
       setFlowResult(null);
 
-      // Then classify with AI
       try {
         const classification = await classifyTaskAI(title);
-        await updateTaskClassification(newTask.id, classification.tag, classification.energy, classification.schedule);
+        await updateTaskClassification(
+          newTask.id,
+          classification.category,
+          classification.energy_required,
+          classification.effort_level
+        );
         setTasks((prev) =>
-          prev.map((t) =>
-            t.id === newTask.id
-              ? { ...t, tag: classification.tag, energy_required: classification.energy, schedule_preference: classification.schedule, ai_classified: true }
-              : t
+          prev.map((task) =>
+            task.id === newTask.id
+              ? {
+                  ...task,
+                  tag: classification.category,
+                  energy_required: classification.energy_required,
+                  effort_level: classification.effort_level,
+                  ai_classified: true,
+                }
+              : task
           )
         );
-        toast.success(`Classified as ${classification.tag} ✨`);
+        toast.success(`Classified as ${classification.category} ${"\u2728"}`);
       } catch (e) {
         console.error("AI classification failed:", e);
-        toast.error("AI classification failed — task saved without category");
+        toast.error("AI classification failed - task saved without category");
       }
     } catch (e) {
       console.error("Failed to add task:", e);
@@ -66,7 +82,7 @@ export default function Index() {
   }, []);
 
   const removeTask = useCallback(async (id: string) => {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+    setTasks((prev) => prev.filter((task) => task.id !== id));
     setFlowResult(null);
     try {
       await deleteTask(id);
@@ -77,7 +93,7 @@ export default function Index() {
   }, []);
 
   const handleToggleComplete = useCallback(async (id: string, completed: boolean) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed } : t)));
+    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, completed } : task)));
     try {
       await toggleTaskComplete(id, completed);
     } catch (e) {
@@ -90,7 +106,9 @@ export default function Index() {
     setLoading(true);
     setFlowResult(null);
 
-    // Save daily log
+    const activeTasks = tasks.filter((task) => !task.completed);
+    const fallbackResult = planFlow(tasks, userState);
+
     if (userState.mood) {
       try {
         await saveDailyLog(userState.energyLevel, userState.mood, userState.notes);
@@ -99,10 +117,34 @@ export default function Index() {
       }
     }
 
-    setTimeout(() => {
-      setFlowResult(planFlow(tasks, userState));
+    try {
+      const aiPlan = await planFlowAI(userState, activeTasks);
+      const updates = aiPlan.schedule
+        .map((item) => {
+          const matchedTask = activeTasks.find((task) => task.title === item.task);
+          const schedule = toSchedulePreference(item.time);
+          return matchedTask && schedule ? { id: matchedTask.id, schedule } : null;
+        })
+        .filter((item): item is { id: string; schedule: SchedulePreference } => Boolean(item));
+
+      if (updates.length > 0) {
+        await updateTaskSchedules(updates);
+      }
+
+      const scheduledTasks = tasks.map((task) => {
+        const update = updates.find((item) => item.id === task.id);
+        return update ? { ...task, schedule_preference: update.schedule } : task;
+      });
+
+      setTasks(scheduledTasks);
+      setFlowResult({ ...planFlow(scheduledTasks, userState), aiSuggestion: aiPlan.suggestion });
+    } catch (e) {
+      console.error("AI planning failed:", e);
+      toast.error("AI suggestions are unavailable right now - showing your local flow plan");
+      setFlowResult(fallbackResult);
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   }, [tasks, userState]);
 
   const handleGetInsights = useCallback(async () => {
@@ -110,20 +152,19 @@ export default function Index() {
     try {
       const result = await getInsightsAI();
       setInsights(result);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error("Failed to get insights:", e);
-      toast.error(e?.message || "Failed to get insights");
+      toast.error(e instanceof Error ? e.message : "Failed to get insights");
     } finally {
       setInsightsLoading(false);
     }
   }, []);
 
-  const activeTasks = tasks.filter((t) => !t.completed);
-  const completedTasks = tasks.filter((t) => t.completed);
+  const activeTasks = tasks.filter((task) => !task.completed);
+  const completedTasks = tasks.filter((task) => task.completed);
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="pt-10 pb-6 text-center">
         <div className="flex items-center justify-center gap-2 mb-1">
           <Leaf className="w-6 h-6 text-primary" />
@@ -133,7 +174,6 @@ export default function Index() {
       </header>
 
       <main className="max-w-lg mx-auto px-4 pb-24 space-y-8">
-        {/* Check-in */}
         <CheckInCard
           state={userState}
           onStateChange={setUserState}
@@ -141,7 +181,6 @@ export default function Index() {
           hasTasks={activeTasks.length > 0}
         />
 
-        {/* Task List */}
         <section className="space-y-4 animate-fade-up-delay-1">
           <h2 className="text-lg font-semibold text-foreground">Your Tasks</h2>
           <TaskInput onAdd={addTask} isClassifying={isClassifying} />
@@ -152,8 +191,8 @@ export default function Index() {
             </div>
           ) : activeTasks.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">Add a few tasks to start planning your flow 🌱</p>
-              <p className="text-xs text-muted-foreground mt-1">AI will automatically classify them ✨</p>
+              <p className="text-sm text-muted-foreground">Add a few tasks to start planning your flow {"\uD83C\uDF31"}</p>
+              <p className="text-xs text-muted-foreground mt-1">AI will automatically classify them {"\u2728"}</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -175,22 +214,27 @@ export default function Index() {
           )}
         </section>
 
-        {/* Loading */}
         {loading && (
           <div className="text-center py-8 animate-fade-up">
             <div className="inline-flex items-center gap-2 text-primary">
               <Leaf className="w-5 h-5" style={{ animation: "gentlePulse 1.5s ease-in-out infinite" }} />
-              <span className="text-sm font-medium">Planning your flow…</span>
+              <span className="text-sm font-medium">Planning your flow...</span>
             </div>
           </div>
         )}
 
-        {/* Results */}
         {flowResult && !loading && <FlowResults result={flowResult} userState={userState} />}
 
-        {/* AI Insights */}
         <InsightsCard insights={insights} loading={insightsLoading} onFetch={handleGetInsights} />
       </main>
     </div>
   );
+}
+
+function toSchedulePreference(value: string): SchedulePreference | null {
+  const normalized = value.toLowerCase();
+  if (normalized === "morning" || normalized === "afternoon" || normalized === "evening") {
+    return normalized;
+  }
+  return null;
 }

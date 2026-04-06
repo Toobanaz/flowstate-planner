@@ -24,12 +24,12 @@ export function CheckInCard({ state, onStateChange, onPlanFlow, hasTasks }: Chec
 
       <EnergySlider
         value={state.energyLevel}
-        onChange={(v) => onStateChange({ ...state, energyLevel: v })}
+        onChange={(value) => onStateChange({ ...state, energyLevel: value })}
       />
 
       <MoodSelector
         value={state.mood}
-        onChange={(m: Mood) => onStateChange({ ...state, mood: m })}
+        onChange={(mood: Mood) => onStateChange({ ...state, mood })}
       />
 
       <div className="space-y-2">
@@ -37,7 +37,7 @@ export function CheckInCard({ state, onStateChange, onPlanFlow, hasTasks }: Chec
         <textarea
           value={state.notes}
           onChange={(e) => onStateChange({ ...state, notes: e.target.value })}
-          placeholder="Optional — jot down a thought…"
+          placeholder="Optional - jot down a thought..."
           className="w-full rounded-xl border border-input bg-cream px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none h-20"
         />
       </div>

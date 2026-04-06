@@ -1,12 +1,14 @@
 export type TaskTag = "Deep Work" | "Creative" | "Admin" | "Social" | "Errands";
 export type Mood = "Focused" | "Overwhelmed" | "Calm" | "Anxious" | "Motivated";
 export type SchedulePreference = "morning" | "afternoon" | "evening";
+export type EffortLevel = "Low" | "Medium" | "High";
 
 export interface Task {
   id: string;
   title: string;
   tag: TaskTag | null;
   energy_required: number;
+  effort_level: EffortLevel | null;
   schedule_preference: SchedulePreference | null;
   ai_classified: boolean;
   completed: boolean;
@@ -23,11 +25,25 @@ export interface FlowResult {
   doNow: Task[];
   doLater: Task[];
   avoid: Task[];
+  aiSuggestion?: AISuggestion;
   timeline: {
     morning: Task[];
     afternoon: Task[];
     evening: Task[];
   };
+}
+
+export interface AISuggestion {
+  try_first: string;
+  avoid_now: string;
+}
+
+export interface AIPlanResponse {
+  suggestion: AISuggestion;
+  schedule: Array<{
+    task: string;
+    time: "Morning" | "Afternoon" | "Evening";
+  }>;
 }
 
 export interface Insight {
@@ -92,9 +108,9 @@ export function planFlow(tasks: Task[], state: UserState): FlowResult {
     doNow.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a));
   }
 
-  // Build timeline from doNow tasks
+  // Build the timeline from every active task so AI scheduling can guide the whole day.
   const timeline = { morning: [] as Task[], afternoon: [] as Task[], evening: [] as Task[] };
-  for (const task of doNow) {
+  for (const task of activeTasks) {
     const pref = task.schedule_preference;
     if (pref) {
       timeline[pref].push(task);
