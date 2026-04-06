@@ -1,10 +1,26 @@
-import { FlowResult } from "@/lib/flowEngine";
+import { FlowResult, UserState } from "@/lib/flowEngine";
 import { TaskCard } from "./TaskCard";
-import { CheckCircle2, Clock, Ban } from "lucide-react";
+import { CheckCircle2, Clock, Ban, Sun, CloudSun, Moon } from "lucide-react";
 
 interface FlowResultsProps {
   result: FlowResult;
+  userState: UserState;
 }
+
+const emptyMessages: Record<string, { title: string; text: string }> = {
+  doNow: {
+    title: "Take it easy",
+    text: "You're low on energy. Start small — try adding a 5-minute task 🌱",
+  },
+  doLater: {
+    title: "All clear",
+    text: "Nothing to postpone — you're on top of things! ✨",
+  },
+  avoid: {
+    title: "Looking good",
+    text: "No tasks to avoid right now 🎉",
+  },
+};
 
 const sections = [
   {
@@ -33,7 +49,24 @@ const sections = [
   },
 ];
 
-export function FlowResults({ result }: FlowResultsProps) {
+const timelineIcons = {
+  morning: <Sun className="w-4 h-4" />,
+  afternoon: <CloudSun className="w-4 h-4" />,
+  evening: <Moon className="w-4 h-4" />,
+};
+
+const timelineLabels = {
+  morning: "Morning — Peak Energy",
+  afternoon: "Afternoon — Steady Focus",
+  evening: "Evening — Wind Down",
+};
+
+export function FlowResults({ result, userState }: FlowResultsProps) {
+  const hasTimeline =
+    result.timeline.morning.length > 0 ||
+    result.timeline.afternoon.length > 0 ||
+    result.timeline.evening.length > 0;
+
   return (
     <div className="space-y-6">
       <div className="text-center animate-fade-up">
@@ -41,8 +74,37 @@ export function FlowResults({ result }: FlowResultsProps) {
         <p className="text-sm text-muted-foreground mt-1">Based on how you're feeling</p>
       </div>
 
+      {/* Timeline */}
+      {hasTimeline && (
+        <div className="flow-card space-y-4 animate-fade-up-delay-1">
+          <h3 className="text-sm font-semibold text-foreground">Suggested Timeline for Today</h3>
+          {(["morning", "afternoon", "evening"] as const).map((slot) => {
+            const tasks = result.timeline[slot];
+            if (tasks.length === 0) return null;
+            return (
+              <div key={slot} className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span className="text-primary">{timelineIcons[slot]}</span>
+                  <span className="font-medium">{timelineLabels[slot]}</span>
+                </div>
+                <div className="space-y-1 pl-6">
+                  {tasks.map((task) => (
+                    <div key={task.id} className="text-sm text-foreground py-1">
+                      • {task.title}
+                      {task.tag && <span className="text-xs text-muted-foreground ml-2">({task.tag})</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Category sections */}
       {sections.map(({ key, title, icon, description, color, delay }) => {
         const tasks = result[key];
+        const empty = emptyMessages[key];
         return (
           <div key={key} className={`space-y-3 ${delay}`}>
             <div className="flex items-center gap-2">
@@ -59,7 +121,10 @@ export function FlowResults({ result }: FlowResultsProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-muted-foreground pl-7 italic">No tasks here</p>
+              <div className="pl-7 py-3 rounded-xl bg-muted/50">
+                <p className="text-sm font-medium text-foreground">{empty.title}</p>
+                <p className="text-xs text-muted-foreground">{empty.text}</p>
+              </div>
             )}
           </div>
         );

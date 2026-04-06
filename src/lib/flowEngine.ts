@@ -1,11 +1,16 @@
 export type TaskTag = "Deep Work" | "Creative" | "Admin" | "Social" | "Errands";
 export type Mood = "Focused" | "Overwhelmed" | "Calm" | "Anxious" | "Motivated";
+export type SchedulePreference = "morning" | "afternoon" | "evening";
 
 export interface Task {
   id: string;
   title: string;
-  tag: TaskTag;
-  createdAt: string;
+  tag: TaskTag | null;
+  energy_required: number;
+  schedule_preference: SchedulePreference | null;
+  ai_classified: boolean;
+  completed: boolean;
+  created_at: string;
 }
 
 export interface UserState {
@@ -18,6 +23,17 @@ export interface FlowResult {
   doNow: Task[];
   doLater: Task[];
   avoid: Task[];
+  timeline: {
+    morning: Task[];
+    afternoon: Task[];
+    evening: Task[];
+  };
+}
+
+export interface Insight {
+  emoji: string;
+  title: string;
+  text: string;
 }
 
 const taskEnergyMap: Record<TaskTag, number> = {
@@ -27,6 +43,12 @@ const taskEnergyMap: Record<TaskTag, number> = {
   Social: 3,
   Errands: 2,
 };
+
+export function getTaskEnergy(task: Task): number {
+  if (task.energy_required) return task.energy_required;
+  if (task.tag) return taskEnergyMap[task.tag] ?? 3;
+  return 3;
+}
 
 export function planFlow(tasks: Task[], state: UserState): FlowResult {
   let moodModifier = 0;
@@ -39,13 +61,11 @@ export function planFlow(tasks: Task[], state: UserState): FlowResult {
   const doLater: Task[] = [];
   const avoid: Task[] = [];
 
-  // Sort tasks by energy requirement for smarter ordering
-  const sorted = [...tasks].sort(
-    (a, b) => taskEnergyMap[a.tag] - taskEnergyMap[b.tag]
-  );
+  const activeTasks = tasks.filter((t) => !t.completed);
+  const sorted = [...activeTasks].sort((a, b) => getTaskEnergy(a) - getTaskEnergy(b));
 
   for (const task of sorted) {
-    const required = taskEnergyMap[task.tag];
+    const required = getTaskEnergy(task);
     if (required <= effectiveEnergy) {
       doNow.push(task);
     } else if (required === effectiveEnergy + 1) {
@@ -69,10 +89,25 @@ export function planFlow(tasks: Task[], state: UserState): FlowResult {
 
   // If focused, prioritize deep work to top
   if (state.mood === "Focused") {
-    doNow.sort((a, b) => taskEnergyMap[b.tag] - taskEnergyMap[a.tag]);
+    doNow.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a));
   }
 
-  return { doNow, doLater, avoid };
+  // Build timeline from doNow tasks
+  const timeline = { morning: [] as Task[], afternoon: [] as Task[], evening: [] as Task[] };
+  for (const task of doNow) {
+    const pref = task.schedule_preference;
+    if (pref) {
+      timeline[pref].push(task);
+    } else {
+      // Auto-assign based on energy
+      const energy = getTaskEnergy(task);
+      if (energy >= 4) timeline.morning.push(task);
+      else if (energy >= 3) timeline.afternoon.push(task);
+      else timeline.evening.push(task);
+    }
+  }
+
+  return { doNow, doLater, avoid, timeline };
 }
 
 export function generateId(): string {
