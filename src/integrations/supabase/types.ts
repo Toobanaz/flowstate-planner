@@ -44,7 +44,6 @@ export type Database = {
           completed: boolean | null
           created_at: string
           energy_required: number | null
-          effort_level: string | null
           id: string
           schedule_preference: string | null
           tag: string | null
@@ -55,7 +54,6 @@ export type Database = {
           completed?: boolean | null
           created_at?: string
           energy_required?: number | null
-          effort_level?: string | null
           id?: string
           schedule_preference?: string | null
           tag?: string | null
@@ -66,7 +64,6 @@ export type Database = {
           completed?: boolean | null
           created_at?: string
           energy_required?: number | null
-          effort_level?: string | null
           id?: string
           schedule_preference?: string | null
           tag?: string | null
