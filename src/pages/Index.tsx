@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { Task, UserState, FlowResult, Insight, SchedulePreference, planFlow } from "@/lib/flowEngine";
 import {
   fetchTasks,
@@ -17,10 +18,14 @@ import { TaskInput } from "@/components/TaskInput";
 import { TaskCard } from "@/components/TaskCard";
 import { FlowResults } from "@/components/FlowResults";
 import { InsightsCard } from "@/components/InsightsCard";
-import { Leaf, Loader2 } from "lucide-react";
+import { Leaf, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 export default function Index() {
+  const { user, loading: authLoading, signOut } = useAuth();
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [userState, setUserState] = useState<UserState>({ energyLevel: 3, mood: null, notes: "" });
   const [flowResult, setFlowResult] = useState<FlowResult | null>(null);
@@ -31,6 +36,13 @@ export default function Index() {
   const [tasksLoading, setTasksLoading] = useState(true);
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth", { replace: true });
+    }
+  }, [authLoading, user, navigate]);
+
+  useEffect(() => {
+    if (!user) return;
     fetchTasks()
       .then(setTasks)
       .catch((e) => {
@@ -38,7 +50,7 @@ export default function Index() {
         toast.error("Failed to load tasks");
       })
       .finally(() => setTasksLoading(false));
-  }, []);
+  }, [user]);
 
   const addTask = useCallback(async (title: string) => {
     setIsClassifying(true);
@@ -68,7 +80,7 @@ export default function Index() {
               : task
           )
         );
-        toast.success(`Classified as ${classification.category} ${"\u2728"}`);
+        toast.success(`Classified as ${classification.category} ✨`);
       } catch (e) {
         console.error("AI classification failed:", e);
         toast.error("AI classification failed - task saved without category");
@@ -160,12 +172,43 @@ export default function Index() {
     }
   }, []);
 
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center gap-2 text-primary">
+          <Leaf className="w-6 h-6" style={{ animation: "gentlePulse 1.5s ease-in-out infinite" }} />
+          <span className="text-sm font-medium text-muted-foreground">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
   const activeTasks = tasks.filter((task) => !task.completed);
   const completedTasks = tasks.filter((task) => task.completed);
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="pt-10 pb-6 text-center">
+      <header className="pt-10 pb-6 text-center relative">
+        <div className="absolute right-4 top-4 flex items-center gap-3">
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            {user.email}
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
         <div className="flex items-center justify-center gap-2 mb-1">
           <Leaf className="w-6 h-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight text-foreground">FlowState</h1>
@@ -191,8 +234,8 @@ export default function Index() {
             </div>
           ) : activeTasks.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-sm text-muted-foreground">Add a few tasks to start planning your flow {"\uD83C\uDF31"}</p>
-              <p className="text-xs text-muted-foreground mt-1">AI will automatically classify them {"\u2728"}</p>
+              <p className="text-sm text-muted-foreground">Add a few tasks to start planning your flow 🌱</p>
+              <p className="text-xs text-muted-foreground mt-1">AI will automatically classify them ✨</p>
             </div>
           ) : (
             <div className="space-y-2">
