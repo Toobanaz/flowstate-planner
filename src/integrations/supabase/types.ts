@@ -21,6 +21,7 @@ export type Database = {
           id: string
           mood: string
           notes: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -28,6 +29,7 @@ export type Database = {
           id?: string
           mood: string
           notes?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -35,6 +37,7 @@ export type Database = {
           id?: string
           mood?: string
           notes?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -43,34 +46,37 @@ export type Database = {
           ai_classified: boolean | null
           completed: boolean | null
           created_at: string
-          energy_required: number | null
           effort_level: string | null
+          energy_required: number | null
           id: string
           schedule_preference: string | null
           tag: string | null
           title: string
+          user_id: string | null
         }
         Insert: {
           ai_classified?: boolean | null
           completed?: boolean | null
           created_at?: string
-          energy_required?: number | null
           effort_level?: string | null
+          energy_required?: number | null
           id?: string
           schedule_preference?: string | null
           tag?: string | null
           title: string
+          user_id?: string | null
         }
         Update: {
           ai_classified?: boolean | null
           completed?: boolean | null
           created_at?: string
-          energy_required?: number | null
           effort_level?: string | null
+          energy_required?: number | null
           id?: string
           schedule_preference?: string | null
           tag?: string | null
           title?: string
+          user_id?: string | null
         }
         Relationships: []
       }

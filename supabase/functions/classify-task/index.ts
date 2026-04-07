@@ -76,8 +76,8 @@ function normalizeClassification(input: JsonObject) {
   const effortLevel = input.effort_level;
   const energy = Number(input.energy_required);
 
-  if (!categories.includes(category)) throw new Error("Invalid category returned");
-  if (!effortLevels.includes(effortLevel)) throw new Error("Invalid effort level returned");
+  if (!categories.includes(category as string)) throw new Error("Invalid category returned");
+  if (!effortLevels.includes(effortLevel as string)) throw new Error("Invalid effort level returned");
   if (!Number.isInteger(energy) || energy < 1 || energy > 5) {
     throw new Error("Invalid energy required returned");
   }

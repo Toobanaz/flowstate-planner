@@ -18,6 +18,12 @@ export interface TaskClassification {
 
 type TaskRow = Tables<"tasks">;
 
+async function getCurrentUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  return user.id;
+}
+
 // Tasks CRUD
 export async function fetchTasks(): Promise<Task[]> {
   const { data, error } = await supabase
@@ -29,9 +35,10 @@ export async function fetchTasks(): Promise<Task[]> {
 }
 
 export async function createTask(title: string): Promise<Task> {
+  const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from("tasks")
-    .insert({ title })
+    .insert({ title, user_id: userId })
     .select()
     .single();
   if (error) throw error;
@@ -77,10 +84,12 @@ export async function toggleTaskComplete(id: string, completed: boolean): Promis
 
 // Daily logs
 export async function saveDailyLog(energyLevel: number, mood: string, notes: string): Promise<void> {
+  const userId = await getCurrentUserId();
   const { error } = await supabase.from("daily_logs").insert({
     energy_level: energyLevel,
     mood,
     notes,
+    user_id: userId,
   });
   if (error) throw error;
 }
@@ -129,7 +138,7 @@ function mapDbTask(row: TaskRow): Task {
     title: row.title,
     tag: row.tag as TaskTag | null,
     energy_required: row.energy_required ?? 3,
-    effort_level: row.effort_level as EffortLevel | null,
+    effort_level: (row.effort_level as EffortLevel | null) ?? null,
     schedule_preference: row.schedule_preference as SchedulePreference | null,
     ai_classified: row.ai_classified ?? false,
     completed: row.completed ?? false,
