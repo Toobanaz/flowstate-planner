@@ -8,6 +8,7 @@ import {
   Task,
   TaskTag,
   UserState,
+  getLocalTimeContext,
 } from "./flowEngine";
 
 export interface TaskClassification {
@@ -105,11 +106,12 @@ export async function classifyTaskAI(taskText: string): Promise<TaskClassificati
 }
 
 // AI plan suggestions + scheduling
-export async function planFlowAI(state: UserState, tasks: Task[]): Promise<AIPlanResponse> {
+export async function planFlowAI(state: UserState, tasks: Task[], localTime = getLocalTimeContext()): Promise<AIPlanResponse> {
   const { data, error } = await supabase.functions.invoke("plan-flow-ai", {
     body: {
       energy_level: state.energyLevel,
       mood: state.mood,
+      local_context: localTime,
       tasks: tasks.map((task) => ({
         id: task.id,
         title: task.title,
