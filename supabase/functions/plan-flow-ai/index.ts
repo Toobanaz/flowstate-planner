@@ -21,7 +21,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { energy_level, mood, tasks } = await req.json();
+    const { energy_level, mood, tasks, local_context } = await req.json();
     if (!Number.isInteger(energy_level) || energy_level < 1 || energy_level > 5) {
       return jsonResponse({ error: "Energy level must be an integer from 1 to 5" }, 400);
     }
@@ -45,6 +45,20 @@ serve(async (req) => {
 User state:
 - Energy: ${energy_level}
 - Mood: ${mood}
+- Local date: ${typeof local_context?.localDate === "string" ? local_context.localDate : "Unknown"}
+- Local clock time: ${typeof local_context?.localTime === "string" ? local_context.localTime : "Unknown"}
+- Time zone: ${typeof local_context?.timeZone === "string" ? local_context.timeZone : "Unknown"}
+- Current period: ${typeof local_context?.period === "string" ? local_context.period : "Unknown"}
+
+Use the user's LOCAL time, not server time. Never assume it is morning.
+Only suggest periods that have not passed today. In the evening (18:00 or later),
+tasks requiring energy 4–5 should be saved for tomorrow morning, not started now,
+even if the user reports high energy. Between midnight and 06:00, recommend rest
+and defer work until after sleep. Explicitly say tomorrow/after sleep in the
+suggestion when deferring. The schedule time for those deferred tasks is Morning.
+For lighter tasks with a past preferred period, use the current or a later period.
+Quote the EXACT original task title in advice so the user knows which task you mean.
+Never rename tasks, and use exact original titles in schedule entries.
 
 Tasks:
 ${taskList}

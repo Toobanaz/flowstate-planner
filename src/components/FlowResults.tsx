@@ -56,9 +56,9 @@ const timelineIcons = {
 };
 
 const timelineLabels = {
-  morning: "Morning - Peak Energy",
-  afternoon: "Afternoon - Steady Focus",
-  evening: "Evening - Wind Down",
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
 };
 
 export function FlowResults({ result }: FlowResultsProps) {
@@ -71,7 +71,7 @@ export function FlowResults({ result }: FlowResultsProps) {
     <div className="space-y-6">
       <div className="text-center animate-fade-up">
         <h2 className="text-xl font-semibold text-foreground">Your Flow Plan ✨</h2>
-        <p className="text-sm text-muted-foreground mt-1">Based on how you're feeling</p>
+        <p className="text-sm text-muted-foreground mt-1">{result.localTime.localTime} · Your local time · {result.localTime.period}</p>
       </div>
 
       {result.aiSuggestion && (
@@ -98,7 +98,7 @@ export function FlowResults({ result }: FlowResultsProps) {
 
       {hasTimeline && (
         <div className="flow-card space-y-4 animate-fade-up-delay-1">
-          <h3 className="text-sm font-semibold text-foreground">Suggested Timeline</h3>
+          <h3 className="text-sm font-semibold text-foreground">Remaining Today</h3>
           {(["morning", "afternoon", "evening"] as const).map((slot) => {
             const tasks = result.timeline[slot];
             if (tasks.length === 0) return null;
@@ -110,7 +110,7 @@ export function FlowResults({ result }: FlowResultsProps) {
                 </div>
                 <div className="space-y-1 pl-6">
                   {tasks.map((task) => (
-                    <div key={task.id} className="text-sm text-foreground py-1">
+                    <div key={task.id} className="text-sm text-foreground py-1 whitespace-pre-wrap [overflow-wrap:anywhere]">
                       • {task.title}
                       {task.tag && <span className="text-xs text-muted-foreground ml-2">({task.tag})</span>}
                     </div>
@@ -120,6 +120,23 @@ export function FlowResults({ result }: FlowResultsProps) {
             );
           })}
         </div>
+      )}
+
+      {result.tomorrow.length > 0 && (
+        <section className="space-y-3 animate-fade-up-delay-1">
+          <div className="flex items-start gap-2">
+            <Sun className="w-5 h-5 shrink-0 text-primary" />
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Tomorrow — Fresh Start</h3>
+              <p className="text-xs text-muted-foreground">
+                {result.localTime.hour < 6 ? "It's late. Rest first, then revisit these after sleep." : "Save demanding tasks for tomorrow morning, when you've had time to recharge."}
+              </p>
+            </div>
+          </div>
+          <div className="space-y-2 pl-7">
+            {result.tomorrow.map((task) => <TaskCard key={task.id} task={task} />)}
+          </div>
+        </section>
       )}
 
       {sections.map(({ key, title, icon, description, color, delay }) => {
@@ -142,8 +159,8 @@ export function FlowResults({ result }: FlowResultsProps) {
               </div>
             ) : (
               <div className="pl-7 py-3 rounded-xl bg-muted/50">
-                <p className="text-sm font-medium text-foreground">{empty.title}</p>
-                <p className="text-xs text-muted-foreground">{empty.text}</p>
+                <p className="text-sm font-medium text-foreground">{key === "doNow" && result.tomorrow.length ? "Time to recharge" : empty.title}</p>
+                <p className="text-xs text-muted-foreground">{key === "doNow" && result.tomorrow.length ? "Your demanding tasks can wait until after you've rested." : empty.text}</p>
               </div>
             )}
           </div>

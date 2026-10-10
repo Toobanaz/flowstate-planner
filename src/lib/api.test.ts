@@ -26,6 +26,7 @@ import {
   updateTaskClassification,
   updateTaskSchedules,
 } from "./api";
+import { getLocalTimeContext } from "./flowEngine";
 
 describe("api", () => {
   beforeEach(() => {
@@ -113,6 +114,7 @@ describe("api", () => {
       error: null,
     });
 
+    const localTime = getLocalTimeContext(new Date(2026, 9, 10, 20, 30));
     const result = await planFlowAI(
       { energyLevel: 4, mood: "Focused", notes: "" },
       [
@@ -127,13 +129,15 @@ describe("api", () => {
           completed: false,
           created_at: "2026-04-06T00:00:00.000Z",
         },
-      ]
+      ],
+      localTime
     );
 
     expect(mocks.invoke).toHaveBeenCalledWith("plan-flow-ai", {
       body: {
         energy_level: 4,
         mood: "Focused",
+        local_context: localTime,
         tasks: [
           {
             id: "task-1",

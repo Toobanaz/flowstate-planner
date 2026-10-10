@@ -25,6 +25,8 @@ export interface FlowResult {
   doNow: Task[];
   doLater: Task[];
   avoid: Task[];
+  tomorrow: Task[];
+  localTime: LocalTimeContext;
   aiSuggestion?: AISuggestion;
   timeline: {
     morning: Task[];
@@ -44,6 +46,25 @@ export interface AIPlanResponse {
     task: string;
     time: "Morning" | "Afternoon" | "Evening";
   }>;
+}
+
+export interface LocalTimeContext {
+  localDate: string;
+  localTime: string;
+  hour: number;
+  timeZone: string;
+  period: SchedulePreference;
+}
+
+export function getLocalTimeContext(now = new Date()): LocalTimeContext {
+  const hour = now.getHours();
+  return {
+    localDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+    localTime: `${String(hour).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+    hour,
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    period: hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening",
+  };
 }
 
 export interface Insight {
@@ -66,7 +87,7 @@ export function getTaskEnergy(task: Task): number {
   return 3;
 }
 
-export function planFlow(tasks: Task[], state: UserState): FlowResult {
+export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTimeContext()): FlowResult {
   let moodModifier = 0;
   if (state.mood === "Overwhelmed" || state.mood === "Anxious") moodModifier = -1;
   if (state.mood === "Motivated") moodModifier = 1;
@@ -76,12 +97,17 @@ export function planFlow(tasks: Task[], state: UserState): FlowResult {
   const doNow: Task[] = [];
   const doLater: Task[] = [];
   const avoid: Task[] = [];
+  const tomorrow: Task[] = [];
 
   const activeTasks = tasks.filter((t) => !t.completed);
   const sorted = [...activeTasks].sort((a, b) => getTaskEnergy(a) - getTaskEnergy(b));
 
   for (const task of sorted) {
     const required = getTaskEnergy(task);
+    if (localTime.hour < 6 || (localTime.hour >= 18 && required >= 4)) {
+      tomorrow.push(task);
+      continue;
+    }
     if (required <= effectiveEnergy) {
       doNow.push(task);
     } else if (required === effectiveEnergy + 1) {
@@ -108,22 +134,18 @@ export function planFlow(tasks: Task[], state: UserState): FlowResult {
     doNow.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a));
   }
 
-  // Build the timeline from every active task so AI scheduling can guide the whole day.
+  // Only show remaining periods today; demanding evening work is reserved for tomorrow.
   const timeline = { morning: [] as Task[], afternoon: [] as Task[], evening: [] as Task[] };
+  const periods: SchedulePreference[] = ["morning", "afternoon", "evening"];
   for (const task of activeTasks) {
-    const pref = task.schedule_preference;
-    if (pref) {
-      timeline[pref].push(task);
-    } else {
-      // Auto-assign based on energy
-      const energy = getTaskEnergy(task);
-      if (energy >= 4) timeline.morning.push(task);
-      else if (energy >= 3) timeline.afternoon.push(task);
-      else timeline.evening.push(task);
-    }
+    if (tomorrow.some((item) => item.id === task.id)) continue;
+    const energy = getTaskEnergy(task);
+    const preferred = task.schedule_preference ?? (energy >= 4 ? "morning" : energy >= 3 ? "afternoon" : "evening");
+    const slot = periods.indexOf(preferred) < periods.indexOf(localTime.period) ? localTime.period : preferred;
+    timeline[slot].push(task);
   }
 
-  return { doNow, doLater, avoid, timeline };
+  return { doNow, doLater, avoid, tomorrow, localTime, timeline };
 }
 
 export function generateId(): string {

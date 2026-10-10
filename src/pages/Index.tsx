@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Task, UserState, FlowResult, Insight, SchedulePreference, planFlow } from "@/lib/flowEngine";
+import { Task, UserState, FlowResult, Insight, SchedulePreference, planFlow, getLocalTimeContext } from "@/lib/flowEngine";
 import {
   fetchTasks,
   createTask,
@@ -119,7 +119,8 @@ export default function Index() {
     setFlowResult(null);
 
     const activeTasks = tasks.filter((task) => !task.completed);
-    const fallbackResult = planFlow(tasks, userState);
+    const localTime = getLocalTimeContext();
+    const fallbackResult = planFlow(tasks, userState, localTime);
 
     if (userState.mood) {
       try {
@@ -130,7 +131,7 @@ export default function Index() {
     }
 
     try {
-      const aiPlan = await planFlowAI(userState, activeTasks);
+      const aiPlan = await planFlowAI(userState, activeTasks, localTime);
       const updates = aiPlan.schedule
         .map((item) => {
           const matchedTask = activeTasks.find((task) => task.title === item.task);
@@ -149,7 +150,7 @@ export default function Index() {
       });
 
       setTasks(scheduledTasks);
-      setFlowResult({ ...planFlow(scheduledTasks, userState), aiSuggestion: aiPlan.suggestion });
+      setFlowResult({ ...planFlow(scheduledTasks, userState, localTime), aiSuggestion: aiPlan.suggestion });
     } catch (e) {
       console.error("AI planning failed:", e);
       toast.error("AI suggestions are unavailable right now - showing your local flow plan");
