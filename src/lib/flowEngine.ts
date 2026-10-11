@@ -98,6 +98,9 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   const doLater: Task[] = [];
   const avoid: Task[] = [];
   const tomorrow: Task[] = [];
+  const timeline = { morning: [] as Task[], afternoon: [] as Task[], evening: [] as Task[] };
+  const periods: SchedulePreference[] = ["morning", "afternoon", "evening"];
+  const currentIndex = periods.indexOf(localTime.period);
 
   const activeTasks = tasks.filter((t) => !t.completed);
   const sorted = [...activeTasks].sort((a, b) => getTaskEnergy(a) - getTaskEnergy(b));
@@ -108,12 +111,23 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
       tomorrow.push(task);
       continue;
     }
-    if (required <= effectiveEnergy) {
-      doNow.push(task);
-    } else if (required === effectiveEnergy + 1) {
-      doLater.push(task);
-    } else {
+    if (required > effectiveEnergy + 1) {
       avoid.push(task);
+      continue;
+    }
+    const preferred = task.schedule_preference ?? (required >= 4 ? "morning" : required >= 3 ? "afternoon" : localTime.period);
+    let slotIndex = Math.max(currentIndex, periods.indexOf(preferred));
+    if (required > effectiveEnergy && slotIndex === currentIndex) slotIndex += 1;
+    const slot = periods[slotIndex];
+    if (!slot) {
+      tomorrow.push(task);
+      continue;
+    }
+    timeline[slot].push(task);
+    if (slot === localTime.period && required <= effectiveEnergy) {
+      doNow.push(task);
+    } else {
+      doLater.push(task);
     }
   }
 
@@ -132,17 +146,6 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   // If focused, prioritize deep work to top
   if (state.mood === "Focused") {
     doNow.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a));
-  }
-
-  // Only show remaining periods today; demanding evening work is reserved for tomorrow.
-  const timeline = { morning: [] as Task[], afternoon: [] as Task[], evening: [] as Task[] };
-  const periods: SchedulePreference[] = ["morning", "afternoon", "evening"];
-  for (const task of activeTasks) {
-    if (tomorrow.some((item) => item.id === task.id)) continue;
-    const energy = getTaskEnergy(task);
-    const preferred = task.schedule_preference ?? (energy >= 4 ? "morning" : energy >= 3 ? "afternoon" : "evening");
-    const slot = periods.indexOf(preferred) < periods.indexOf(localTime.period) ? localTime.period : preferred;
-    timeline[slot].push(task);
   }
 
   return { doNow, doLater, avoid, tomorrow, localTime, timeline };

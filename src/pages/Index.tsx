@@ -11,7 +11,6 @@ import {
   saveDailyLog,
   getInsightsAI,
   planFlowAI,
-  updateTaskSchedules,
 } from "@/lib/api";
 import { CheckInCard } from "@/components/CheckInCard";
 import { TaskInput } from "@/components/TaskInput";
@@ -106,13 +105,19 @@ export default function Index() {
 
   const handleToggleComplete = useCallback(async (id: string, completed: boolean) => {
     setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, completed } : task)));
+    setFlowResult((prev) => {
+      if (!prev || !completed) return null;
+      const remaining = [...prev.doNow, ...prev.doLater, ...prev.avoid, ...prev.tomorrow]
+        .filter((task) => task.id !== id);
+      return planFlow(remaining, userState, prev.localTime);
+    });
     try {
       await toggleTaskComplete(id, completed);
     } catch (e) {
       console.error("Failed to toggle task:", e);
       toast.error("Failed to update task");
     }
-  }, []);
+  }, [userState]);
 
   const handlePlanFlow = useCallback(async () => {
     setLoading(true);
@@ -140,17 +145,12 @@ export default function Index() {
         })
         .filter((item): item is { id: string; schedule: SchedulePreference } => Boolean(item));
 
-      if (updates.length > 0) {
-        await updateTaskSchedules(updates);
-      }
-
       const scheduledTasks = tasks.map((task) => {
         const update = updates.find((item) => item.id === task.id);
         return update ? { ...task, schedule_preference: update.schedule } : task;
       });
 
-      setTasks(scheduledTasks);
-      setFlowResult({ ...planFlow(scheduledTasks, userState, localTime), aiSuggestion: aiPlan.suggestion });
+      setFlowResult(planFlow(scheduledTasks, userState, localTime));
     } catch (e) {
       console.error("AI planning failed:", e);
       toast.error("AI suggestions are unavailable right now - showing your local flow plan");
@@ -238,13 +238,13 @@ export default function Index() {
               <p className="text-sm text-muted-foreground">Add a few tasks to start planning your flow 🌱</p>
               <p className="text-xs text-muted-foreground mt-1">AI will automatically classify them ✨</p>
             </div>
-          ) : (
+          ) : !flowResult && !loading ? (
             <div className="space-y-2">
               {activeTasks.map((task) => (
                 <TaskCard key={task.id} task={task} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
               ))}
             </div>
-          )}
+          ) : null}
 
           {completedTasks.length > 0 && (
             <div className="space-y-2 pt-4">
@@ -267,7 +267,7 @@ export default function Index() {
           </div>
         )}
 
-        {flowResult && !loading && <FlowResults result={flowResult} userState={userState} />}
+        {flowResult && !loading && <FlowResults result={flowResult} userState={userState} onRemove={removeTask} onToggleComplete={handleToggleComplete} />}
 
         <InsightsCard insights={insights} loading={insightsLoading} onFetch={handleGetInsights} />
       </main>

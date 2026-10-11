@@ -43,7 +43,7 @@ describe("planFlow", () => {
       { ...baseTask, id: "done", title: "Finished call", completed: true, schedule_preference: "afternoon" },
     ];
 
-    const result = planFlow(tasks, calmState, morning);
+    const result = planFlow(tasks, { ...calmState, energyLevel: 5 }, morning);
 
     expect(result.timeline.morning.map((task) => task.id)).toEqual(["morning"]);
     expect(result.timeline.evening.map((task) => task.id)).toEqual(["evening"]);
@@ -64,7 +64,7 @@ describe("planFlow", () => {
   });
 
   it("does not schedule past morning slots in the afternoon", () => {
-    const result = planFlow([baseTask], calmState, getLocalTimeContext(new Date(2026, 9, 10, 14)));
+    const result = planFlow([baseTask], { ...calmState, energyLevel: 5 }, getLocalTimeContext(new Date(2026, 9, 10, 14)));
     expect(result.timeline.morning).toEqual([]);
     expect(result.timeline.afternoon.map((task) => task.id)).toEqual(["task-1"]);
   });
@@ -81,5 +81,42 @@ describe("planFlow", () => {
       localDate: "2026-10-10", localTime: "18:05", hour: 18, period: "evening",
     });
     expect(getLocalTimeContext(new Date(2026, 9, 10, 17, 59)).period).toBe("afternoon");
+  });
+
+  it("never puts afternoon or evening preferences in Do Now during morning", () => {
+    const result = planFlow([
+      { ...baseTask, id: "afternoon", energy_required: 4, schedule_preference: "afternoon" },
+      { ...baseTask, id: "morning", energy_required: 3, schedule_preference: "morning" },
+      { ...baseTask, id: "evening", energy_required: 2, schedule_preference: "evening" },
+    ], { ...calmState, energyLevel: 4 }, morning);
+    expect(result.doNow.map((task) => task.id)).toEqual(["morning"]);
+    expect(result.doLater.map((task) => task.id)).toEqual(["evening", "afternoon"]);
+  });
+
+  it("does not schedule avoided tasks in the timeline", () => {
+    const result = planFlow([baseTask], { ...calmState, energyLevel: 1 }, morning);
+    expect(result.avoid).toEqual([baseTask]);
+    expect(Object.values(result.timeline).flat()).toEqual([]);
+  });
+
+  it("moves energy-mismatched current tasks later, or tomorrow if no period remains", () => {
+    const task = { ...baseTask, energy_required: 3, schedule_preference: "morning" as const };
+    const state = { ...calmState, energyLevel: 2 };
+    const early = planFlow([task], state, morning);
+    expect(early.doNow).toEqual([]);
+    expect(early.timeline.afternoon).toEqual([task]);
+    const late = planFlow([task], state, getLocalTimeContext(new Date(2026, 9, 10, 20)));
+    expect(late.tomorrow).toEqual([task]);
+    expect(late.doNow).toEqual([]);
+  });
+
+  it("keeps buckets exclusive and limits low-energy recommendations", () => {
+    const tasks = Array.from({ length: 6 }, (_, index) => ({ ...baseTask, id: String(index), energy_required: 2 }));
+    const result = planFlow(tasks, { ...calmState, energyLevel: 2 }, morning);
+    const ids = [...result.doNow, ...result.doLater, ...result.avoid, ...result.tomorrow].map((task) => task.id);
+    expect(new Set(ids).size).toBe(tasks.length);
+    expect(ids).toHaveLength(tasks.length);
+    expect(result.doNow).toHaveLength(2);
+    expect(result.doLater).toHaveLength(4);
   });
 });
