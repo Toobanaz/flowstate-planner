@@ -38,7 +38,7 @@ export function FlowResults({ result, onRemove, onToggleComplete }: FlowResultsP
           <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
           <div>
             <h3 className="text-sm font-semibold text-foreground">Do Now · {periodLabels[result.localTime.period]}</h3>
-            <p className="text-xs text-muted-foreground">{firstTask ? "Start with the first task, then move down at your own pace." : "Time to recharge"}</p>
+            <p className="text-xs text-muted-foreground">{firstTask ? "Matches your energy right now" : "Time to recharge"}</p>
           </div>
         </div>
         {result.doNow.length ? renderTasks(result.doNow) : (
