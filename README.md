@@ -2,6 +2,10 @@
 
 FlowState is a calm, minimal web app that helps you decide what to do based on how you feel right now — instead of forcing your day into a rigid schedule. It asks a simple question each day: **"How are you feeling right now?"** and then plans your tasks around your actual energy and mood.
 
+## Setup
+
+Copy `.env.example` to `.env`, then fill in the required values for your environment.
+
 ## How it works
 
 1. **Daily Check-In** — Use the energy slider (1–5, from Exhausted to Energized) and pick a mood (Focused, Overwhelmed, Calm, Anxious, Motivated). You can optionally jot down what's on your mind.

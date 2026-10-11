@@ -1,6 +1,7 @@
 import { FlowResult, UserState, SchedulePreference } from "@/lib/flowEngine";
 import { TaskCard } from "./TaskCard";
 import { CheckCircle2, Ban, Sun, CloudSun, Moon } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface FlowResultsProps {
   result: FlowResult;
@@ -25,11 +26,17 @@ export function FlowResults({ result, onRemove, onToggleComplete }: FlowResultsP
     </div>
   );
   const firstTask = result.doNow[0];
+  const laterPeriods = (["morning", "afternoon", "evening"] as SchedulePreference[])
+    .map((period) => ({
+      period,
+      tasks: result.timeline[period].filter((task) => result.doLater.some((later) => later.id === task.id)),
+    }))
+    .filter(({ tasks }) => tasks.length > 0);
 
   return (
     <section className="space-y-6 animate-fade-up" aria-label="Your flow plan">
       <div className="text-center">
-        <h2 className="text-xl font-semibold text-foreground">Your Flow Plan ✨</h2>
+        <h2 className="text-xl font-semibold text-foreground">Your Plan ✨</h2>
         <p className="text-sm text-muted-foreground mt-1">{result.localTime.localTime} · Your local time · {result.localTime.period}</p>
       </div>
 
@@ -46,47 +53,61 @@ export function FlowResults({ result, onRemove, onToggleComplete }: FlowResultsP
         )}
       </section>
 
-      {(["morning", "afternoon", "evening"] as SchedulePreference[]).map((period) => {
-        const tasks = result.timeline[period].filter((task) => result.doLater.some((later) => later.id === task.id));
-        if (!tasks.length) return null;
-        return (
-          <section key={period} className="space-y-3" aria-label={`Later ${period}`}>
-            <div className="flex items-start gap-2 text-muted-foreground">
-              <span className="shrink-0 mt-0.5">{periodIcons[period]}</span>
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">{period === result.localTime.period ? `Later this ${period}` : `This ${period}`}</h3>
-                <p className="text-xs">{period === result.localTime.period ? "After your current tasks, if you still have energy" : "Recheck your energy when this time arrives"}</p>
-              </div>
+      {laterPeriods.length > 0 && (
+        <>
+          <Separator className="bg-border/80" />
+          <section className="space-y-4" aria-label="Do Later">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Do Later</h3>
+              <p className="text-xs text-muted-foreground">Tasks matched to a later part of your day</p>
             </div>
-            {renderTasks(tasks)}
+
+            {laterPeriods.map(({ period, tasks }) => (
+              <section key={period} className="space-y-3" aria-label={`Later ${period}`}>
+                <div className="flex items-start gap-2 text-muted-foreground">
+                  <span className="shrink-0 mt-0.5">{periodIcons[period]}</span>
+                  <div>
+                    <h4 className="text-sm font-semibold text-foreground">{period === result.localTime.period ? `Later this ${period}` : `This ${period}`}</h4>
+                    <p className="text-xs">{period === result.localTime.period ? "After your current tasks, if you still have energy" : "Recheck your energy when this time arrives"}</p>
+                  </div>
+                </div>
+                {renderTasks(tasks)}
+              </section>
+            ))}
           </section>
-        );
-      })}
+        </>
+      )}
 
       {result.tomorrow.length > 0 && (
-        <section className="space-y-3" aria-label="Tomorrow">
-          <div className="flex items-start gap-2">
-            <Sun className="w-5 h-5 shrink-0 text-primary" />
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Tomorrow · After rest</h3>
-              <p className="text-xs text-muted-foreground">A fresh start when you've had time to recharge</p>
+        <>
+          <Separator className="bg-border/80" />
+          <section className="space-y-3" aria-label="Tomorrow">
+            <div className="flex items-start gap-2">
+              <Sun className="w-5 h-5 shrink-0 text-primary" />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Tomorrow · After rest</h3>
+                <p className="text-xs text-muted-foreground">A fresh start when you've had time to recharge</p>
+              </div>
             </div>
-          </div>
-          {renderTasks(result.tomorrow)}
-        </section>
+            {renderTasks(result.tomorrow)}
+          </section>
+        </>
       )}
 
       {result.avoid.length > 0 && (
-        <section className="space-y-3" aria-label="Set Aside">
-          <div className="flex items-start gap-2">
-            <Ban className="w-5 h-5 shrink-0 text-muted-foreground" />
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Set Aside</h3>
-              <p className="text-xs text-muted-foreground">Not scheduled today — revisit when your energy is higher</p>
+        <>
+          <Separator className="bg-border/80" />
+          <section className="space-y-3" aria-label="Set Aside">
+            <div className="flex items-start gap-2">
+              <Ban className="w-5 h-5 shrink-0 text-muted-foreground" />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Set Aside</h3>
+                <p className="text-xs text-muted-foreground">Not scheduled today — revisit when your energy is higher</p>
+              </div>
             </div>
-          </div>
-          {renderTasks(result.avoid)}
-        </section>
+            {renderTasks(result.avoid)}
+          </section>
+        </>
       )}
     </section>
   );

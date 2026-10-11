@@ -21,6 +21,7 @@ import { Leaf, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 export default function Index() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -225,6 +226,8 @@ export default function Index() {
           hasTasks={activeTasks.length > 0}
         />
 
+        <Separator className="bg-border/80" />
+
         <section className="space-y-4 animate-fade-up-delay-1">
           <h2 className="text-lg font-semibold text-foreground">Your Tasks</h2>
           <TaskInput onAdd={addTask} isClassifying={isClassifying} />
@@ -258,18 +261,30 @@ export default function Index() {
           )}
         </section>
 
-        {loading && (
-          <div className="text-center py-8 animate-fade-up">
-            <div className="inline-flex items-center gap-2 text-primary">
-              <Leaf className="w-5 h-5" style={{ animation: "gentlePulse 1.5s ease-in-out infinite" }} />
-              <span className="text-sm font-medium">Planning your flow...</span>
-            </div>
-          </div>
+        {(loading || flowResult) && (
+          <>
+            <Separator className="bg-border/80" />
+
+            {loading && (
+              <div className="text-center py-8 animate-fade-up">
+                <div className="inline-flex items-center gap-2 text-primary">
+                  <Leaf className="w-5 h-5" style={{ animation: "gentlePulse 1.5s ease-in-out infinite" }} />
+                  <span className="text-sm font-medium">Planning your flow...</span>
+                </div>
+              </div>
+            )}
+
+            {flowResult && !loading && (
+              <FlowResults result={flowResult} userState={userState} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
+            )}
+          </>
         )}
 
-        {flowResult && !loading && <FlowResults result={flowResult} userState={userState} onRemove={removeTask} onToggleComplete={handleToggleComplete} />}
+        <Separator className="bg-border/80" />
 
-        <InsightsCard insights={insights} loading={insightsLoading} onFetch={handleGetInsights} />
+        <section aria-label="View Insights">
+          <InsightsCard insights={insights} loading={insightsLoading} onFetch={handleGetInsights} />
+        </section>
       </main>
     </div>
   );

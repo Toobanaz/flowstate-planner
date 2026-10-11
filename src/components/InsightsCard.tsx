@@ -14,7 +14,7 @@ export function InsightsCard({ insights, loading, onFetch }: InsightsCardProps) 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">Your Patterns</h2>
+          <h2 className="text-lg font-semibold text-foreground">View Insights</h2>
         </div>
         <Button variant="outline" size="sm" onClick={onFetch} disabled={loading} className="rounded-xl">
           {loading ? (
