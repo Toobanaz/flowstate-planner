@@ -106,7 +106,7 @@ export default function Index() {
   const handleToggleComplete = useCallback(async (id: string, completed: boolean) => {
     setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, completed } : task)));
     setFlowResult((prev) => {
-      if (!prev) return null;
+      if (!prev || !completed) return null;
       const remaining = [...prev.doNow, ...prev.doLater, ...prev.avoid, ...prev.tomorrow]
         .filter((task) => task.id !== id);
       return planFlow(remaining, userState, prev.localTime);
