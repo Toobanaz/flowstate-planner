@@ -22,9 +22,10 @@ interface TaskCardProps {
   task: Task;
   onRemove?: (id: string) => void;
   onToggleComplete?: (id: string, completed: boolean) => void;
+  showSchedule?: boolean;
 }
 
-export function TaskCard({ task, onRemove, onToggleComplete }: TaskCardProps) {
+export function TaskCard({ task, onRemove, onToggleComplete, showSchedule = true }: TaskCardProps) {
   return (
     <div className={`flow-card !p-4 relative space-y-3 group transition-all ${task.completed ? "opacity-60" : ""}`}>
       <div className={`flex items-start gap-3 min-w-0 ${onRemove ? "pr-8" : ""}`}>
@@ -64,7 +65,7 @@ export function TaskCard({ task, onRemove, onToggleComplete }: TaskCardProps) {
           <span className="text-xs text-muted-foreground">{task.effort_level} effort</span>
         )}
         <span className="text-xs text-muted-foreground">Energy {getTaskEnergy(task)}/5</span>
-        {task.schedule_preference && (
+        {showSchedule && task.schedule_preference && (
           <span className="text-xs text-muted-foreground capitalize">{task.schedule_preference}</span>
         )}
         {onRemove && (
