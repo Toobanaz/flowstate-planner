@@ -49,6 +49,8 @@ export type Database = {
           effort_level: string | null
           energy_required: number | null
           id: string
+          override_bucket: string | null
+          override_date: string | null
           schedule_preference: string | null
           tag: string | null
           title: string
@@ -61,6 +63,8 @@ export type Database = {
           effort_level?: string | null
           energy_required?: number | null
           id?: string
+          override_bucket?: string | null
+          override_date?: string | null
           schedule_preference?: string | null
           tag?: string | null
           title: string
@@ -73,6 +77,8 @@ export type Database = {
           effort_level?: string | null
           energy_required?: number | null
           id?: string
+          override_bucket?: string | null
+          override_date?: string | null
           schedule_preference?: string | null
           tag?: string | null
           title?: string
