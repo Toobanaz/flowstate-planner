@@ -1,5 +1,5 @@
 import { Task, getTaskEnergy } from "@/lib/flowEngine";
-import { X, Brain, Palette, FileText, Users, ShoppingBag, Sparkles, Check } from "lucide-react";
+import { X, Brain, Palette, FileText, Users, ShoppingBag, Sparkles, Check, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const tagStyles: Record<string, string> = {
@@ -22,10 +22,21 @@ interface TaskCardProps {
   task: Task;
   onRemove?: (id: string) => void;
   onToggleComplete?: (id: string, completed: boolean) => void;
+  onMoveToDoNow?: (id: string) => void;
   showSchedule?: boolean;
+  reason?: string;
+  isOverridden?: boolean;
 }
 
-export function TaskCard({ task, onRemove, onToggleComplete, showSchedule = true }: TaskCardProps) {
+export function TaskCard({
+  task,
+  onRemove,
+  onToggleComplete,
+  onMoveToDoNow,
+  showSchedule = true,
+  reason,
+  isOverridden = false,
+}: TaskCardProps) {
   return (
     <div className={`flow-card !p-4 relative space-y-3 group transition-all ${task.completed ? "opacity-60" : ""}`}>
       <div className={`flex items-start gap-3 min-w-0 ${onRemove ? "pr-8" : ""}`}>
@@ -81,6 +92,26 @@ export function TaskCard({ task, onRemove, onToggleComplete, showSchedule = true
           </Button>
         )}
       </div>
+      {(reason || isOverridden || onMoveToDoNow) && (
+        <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-3">
+          {isOverridden ? (
+            <span className="text-xs font-medium text-primary/80">Your choice</span>
+          ) : (
+            <p className="min-w-0 text-xs leading-relaxed text-muted-foreground">{reason}</p>
+          )}
+          {onMoveToDoNow && !isOverridden && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onMoveToDoNow(task.id)}
+              className="h-7 shrink-0 rounded-lg px-2 text-xs text-primary hover:text-primary"
+            >
+              <ArrowUp className="mr-1 h-3 w-3" />
+              Move to Do Now
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

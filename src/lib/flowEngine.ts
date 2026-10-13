@@ -2,6 +2,7 @@ export type TaskTag = "Deep Work" | "Creative" | "Admin" | "Social" | "Errands";
 export type Mood = "Focused" | "Overwhelmed" | "Calm" | "Anxious" | "Motivated";
 export type SchedulePreference = "morning" | "afternoon" | "evening";
 export type EffortLevel = "Low" | "Medium" | "High";
+export type OverrideBucket = "do_now";
 
 export interface Task {
   id: string;
@@ -32,9 +33,16 @@ export interface FlowResult {
   doLater: PlannedTask[];
   avoid: PlannedTask[];
   tomorrow: PlannedTask[];
+  doNow: PlannedTask[];
+  doLater: PlannedTask[];
+  avoid: PlannedTask[];
+  tomorrow: PlannedTask[];
   localTime: LocalTimeContext;
   aiSuggestion?: AISuggestion;
   timeline: {
+    morning: PlannedTask[];
+    afternoon: PlannedTask[];
+    evening: PlannedTask[];
     morning: PlannedTask[];
     afternoon: PlannedTask[];
     evening: PlannedTask[];
@@ -162,6 +170,11 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   const avoid: PlannedTask[] = [];
   const tomorrow: PlannedTask[] = [];
   const timeline = { morning: [] as PlannedTask[], afternoon: [] as PlannedTask[], evening: [] as PlannedTask[] };
+  const doNow: PlannedTask[] = [];
+  const doLater: PlannedTask[] = [];
+  const avoid: PlannedTask[] = [];
+  const tomorrow: PlannedTask[] = [];
+  const timeline = { morning: [] as PlannedTask[], afternoon: [] as PlannedTask[], evening: [] as PlannedTask[] };
   const periods: SchedulePreference[] = ["morning", "afternoon", "evening"];
   const currentIndex = periods.indexOf(localTime.period);
 
@@ -249,6 +262,39 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   }
 
   return { doNow, doLater, avoid, tomorrow, localTime, timeline };
+}
+
+function withPlacement(task: Task, reason: string, isOverridden = false): PlannedTask {
+  return { ...task, reason, isOverridden };
+}
+
+function takeNonOverrideOverflow(tasks: PlannedTask[], limit: number): PlannedTask[] {
+  const overflowIds = new Set(tasks.filter((task) => !task.isOverridden).slice(limit).map((task) => task.id));
+  const overflow = tasks.filter((task) => overflowIds.has(task.id));
+  const kept = tasks.filter((task) => !overflowIds.has(task.id));
+  tasks.splice(0, tasks.length, ...kept);
+  return overflow;
+}
+
+function energyMismatchReason(required: number, effectiveEnergy: number, statedEnergy: number): string {
+  return effectiveEnergy === statedEnergy
+    ? `Needs ${required}/5 energy, you're at ${statedEnergy}`
+    : `Needs ${required}/5 energy, available energy is ${effectiveEnergy}/5 after mood adjustment`;
+}
+
+function laterReason(
+  required: number,
+  effectiveEnergy: number,
+  statedEnergy: number,
+  slot: SchedulePreference
+): string {
+  if (required > effectiveEnergy) {
+    const energy = effectiveEnergy === statedEnergy
+      ? `you're at ${statedEnergy}`
+      : `available energy is ${effectiveEnergy}/5 after mood adjustment`;
+    return `Needs ${required}/5 energy, ${energy}; try ${slot}`;
+  }
+  return `Better in the ${slot} for a ${required}/5 energy task`;
 }
 
 export function generateId(): string {

@@ -4,6 +4,7 @@ import {
   AIPlanResponse,
   EffortLevel,
   Insight,
+  OverrideBucket,
   SchedulePreference,
   Task,
   TaskTag,
@@ -80,6 +81,18 @@ export async function deleteTask(id: string): Promise<void> {
 
 export async function toggleTaskComplete(id: string, completed: boolean): Promise<void> {
   const { error } = await supabase.from("tasks").update({ completed }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function updateTaskOverride(
+  id: string,
+  overrideBucket: OverrideBucket,
+  localDate: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("tasks")
+    .update({ override_bucket: overrideBucket, override_date: localDate })
+    .eq("id", id);
   if (error) throw error;
 }
 

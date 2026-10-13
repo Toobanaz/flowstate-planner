@@ -106,6 +106,7 @@ describe("planFlow", () => {
     const state = { ...calmState, energyLevel: 2 };
     const early = planFlow([task], state, morning);
     expect(early.doNow).toEqual([]);
+    expect(early.timeline.afternoon.map((item) => item.id)).toEqual([task.id]);
     expect(early.timeline.afternoon.map((t) => t.id)).toEqual([task.id]);
     const late = planFlow([task], state, getLocalTimeContext(new Date(2026, 9, 10, 20)));
     expect(late.tomorrow.map((t) => t.id)).toEqual([task.id]);
@@ -120,5 +121,44 @@ describe("planFlow", () => {
     expect(ids).toHaveLength(tasks.length);
     expect(result.doNow).toHaveLength(2);
     expect(result.doLater).toHaveLength(4);
+  });
+
+  it("returns a value-based reason for every placement bucket", () => {
+    const result = planFlow([
+      { ...baseTask, id: "now", energy_required: 2, schedule_preference: "morning" },
+      { ...baseTask, id: "later", energy_required: 3, schedule_preference: "afternoon" },
+      { ...baseTask, id: "aside", energy_required: 5 },
+    ], calmState, morning);
+
+    expect(result.doNow[0].reason).toBe("Needs 2/5 energy, within your 3/5 energy now");
+    expect(result.doLater[0].reason).toBe("Better in the afternoon for a 3/5 energy task");
+    expect(result.avoid[0].reason).toBe("Needs 5/5 energy, you're at 3");
+
+    const eveningResult = planFlow(
+      [{ ...baseTask, id: "tomorrow", energy_required: 4 }],
+      { ...calmState, energyLevel: 5 },
+      getLocalTimeContext(new Date(2026, 9, 10, 20))
+    );
+    expect(eveningResult.tomorrow[0].reason)
+      .toBe("Needs 4/5 energy; too demanding for evening, moved to tomorrow");
+  });
+
+  it("keeps today's override in Do Now across replanning and expires it the next day", () => {
+    const overridden = {
+      ...baseTask,
+      override_bucket: "do_now" as const,
+      override_date: morning.localDate,
+    };
+
+    const firstPlan = planFlow([overridden], { ...calmState, energyLevel: 1 }, morning);
+    expect(firstPlan.doNow[0]).toMatchObject({ id: baseTask.id, isOverridden: true });
+
+    const replanned = planFlow(firstPlan.doNow, { ...calmState, energyLevel: 1, mood: "Overwhelmed" }, morning);
+    expect(replanned.doNow[0]).toMatchObject({ id: baseTask.id, isOverridden: true });
+
+    const nextMorning = getLocalTimeContext(new Date(2026, 9, 11, 9, 30));
+    const nextDay = planFlow([overridden], { ...calmState, energyLevel: 1 }, nextMorning);
+    expect(nextDay.doNow).toEqual([]);
+    expect(nextDay.avoid.map((task) => task.id)).toEqual([baseTask.id]);
   });
 });

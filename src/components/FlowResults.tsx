@@ -8,6 +8,7 @@ interface FlowResultsProps {
   userState: UserState;
   onRemove?: (id: string) => void;
   onToggleComplete?: (id: string, completed: boolean) => void;
+  onMoveToDoNow?: (id: string) => void;
 }
 
 const periodLabels = { morning: "Morning", afternoon: "Afternoon", evening: "Evening" };
@@ -17,11 +18,20 @@ const periodIcons = {
   evening: <Moon className="w-4 h-4" />,
 };
 
-export function FlowResults({ result, onRemove, onToggleComplete }: FlowResultsProps) {
-  const renderTasks = (tasks: FlowResult["doNow"]) => (
+export function FlowResults({ result, onRemove, onToggleComplete, onMoveToDoNow }: FlowResultsProps) {
+  const renderTasks = (tasks: FlowResult["doNow"], allowOverride = false) => (
     <div className="space-y-2">
       {tasks.map((task) => (
-        <TaskCard key={task.id} task={task} showSchedule={false} onRemove={onRemove} onToggleComplete={onToggleComplete} />
+        <TaskCard
+          key={task.id}
+          task={task}
+          showSchedule={false}
+          reason={task.reason}
+          isOverridden={task.isOverridden}
+          onRemove={onRemove}
+          onToggleComplete={onToggleComplete}
+          onMoveToDoNow={allowOverride ? onMoveToDoNow : undefined}
+        />
       ))}
     </div>
   );
@@ -105,7 +115,7 @@ export function FlowResults({ result, onRemove, onToggleComplete }: FlowResultsP
                 <p className="text-xs text-muted-foreground">Not scheduled today — revisit when your energy is higher</p>
               </div>
             </div>
-            {renderTasks(result.avoid)}
+            {renderTasks(result.avoid, true)}
           </section>
         </>
       )}

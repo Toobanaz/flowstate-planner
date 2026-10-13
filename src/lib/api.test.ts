@@ -24,6 +24,7 @@ import {
   fetchTasks,
   planFlowAI,
   updateTaskClassification,
+  updateTaskOverride,
   updateTaskSchedules,
 } from "./api";
 import { getLocalTimeContext } from "./flowEngine";
@@ -55,6 +56,8 @@ describe("api", () => {
           ai_classified: true,
           completed: false,
           created_at: "2026-04-06T00:00:00.000Z",
+          override_bucket: "do_now",
+          override_date: "2026-10-10",
         },
       ],
       error: null,
@@ -67,6 +70,8 @@ describe("api", () => {
       effort_level: "Medium",
       schedule_preference: "morning",
       ai_classified: true,
+      override_bucket: "do_now",
+      override_date: "2026-10-10",
     });
   });
 
@@ -103,6 +108,16 @@ describe("api", () => {
 
     expect(mocks.update).toHaveBeenCalledWith({ schedule_preference: "morning" });
     expect(mocks.update).toHaveBeenCalledWith({ schedule_preference: "evening" });
+  });
+
+  it("persists a dated Do Now override", async () => {
+    await updateTaskOverride("task-1", "do_now", "2026-10-10");
+
+    expect(mocks.update).toHaveBeenCalledWith({
+      override_bucket: "do_now",
+      override_date: "2026-10-10",
+    });
+    expect(mocks.eq).toHaveBeenCalledWith("id", "task-1");
   });
 
   it("calls the AI planner with user state and task summaries", async () => {
