@@ -145,6 +145,8 @@ function mapDbTask(row: TaskRow): Task {
     ai_classified: row.ai_classified ?? false,
     completed: row.completed ?? false,
     created_at: row.created_at,
+    override_bucket: row.override_bucket ?? null,
+    override_date: row.override_date ?? null,
   };
 }
 
