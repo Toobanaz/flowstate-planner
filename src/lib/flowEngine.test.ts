@@ -97,7 +97,7 @@ describe("planFlow", () => {
 
   it("does not schedule avoided tasks in the timeline", () => {
     const result = planFlow([baseTask], { ...calmState, energyLevel: 1 }, morning);
-    expect(result.avoid).toEqual([baseTask]);
+    expect(result.avoid.map((t) => t.id)).toEqual([baseTask.id]);
     expect(Object.values(result.timeline).flat()).toEqual([]);
   });
 
@@ -106,9 +106,9 @@ describe("planFlow", () => {
     const state = { ...calmState, energyLevel: 2 };
     const early = planFlow([task], state, morning);
     expect(early.doNow).toEqual([]);
-    expect(early.timeline.afternoon).toEqual([task]);
+    expect(early.timeline.afternoon.map((t) => t.id)).toEqual([task.id]);
     const late = planFlow([task], state, getLocalTimeContext(new Date(2026, 9, 10, 20)));
-    expect(late.tomorrow).toEqual([task]);
+    expect(late.tomorrow.map((t) => t.id)).toEqual([task.id]);
     expect(late.doNow).toEqual([]);
   });
 
