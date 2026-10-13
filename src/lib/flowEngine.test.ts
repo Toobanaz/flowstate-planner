@@ -130,9 +130,9 @@ describe("planFlow", () => {
       { ...baseTask, id: "aside", energy_required: 5 },
     ], calmState, morning);
 
-    expect(result.doNow[0].reason).toBe("Needs 2/5 energy, within your 3/5 energy now");
-    expect(result.doLater[0].reason).toBe("Better in the afternoon for a 3/5 energy task");
-    expect(result.avoid[0].reason).toBe("Needs 5/5 energy, you're at 3");
+    expect(result.doNow[0].reason).toBe("Needs 2/5 energy — you have 3/5, so it fits your morning.");
+    expect(result.doLater[0].reason).toBe("Needs 3/5 energy — a better fit for afternoon.");
+    expect(result.avoid[0].reason).toBe("Needs 5/5 energy, but you're at 3/5 — revisit when your energy is higher.");
 
     const eveningResult = planFlow(
       [{ ...baseTask, id: "tomorrow", energy_required: 4 }],
@@ -140,7 +140,7 @@ describe("planFlow", () => {
       getLocalTimeContext(new Date(2026, 9, 10, 20))
     );
     expect(eveningResult.tomorrow[0].reason)
-      .toBe("Needs 4/5 energy; too demanding for evening, moved to tomorrow");
+      .toBe("Needs 4/5 energy and it's already evening — best tackled tomorrow morning.");
   });
 
   it("keeps today's override in Do Now across replanning and expires it the next day", () => {
@@ -151,10 +151,20 @@ describe("planFlow", () => {
     };
 
     const firstPlan = planFlow([overridden], { ...calmState, energyLevel: 1 }, morning);
-    expect(firstPlan.doNow[0]).toMatchObject({ id: baseTask.id, isOverridden: true });
+    expect(firstPlan.doNow[0]).toMatchObject({
+      id: baseTask.id,
+      override_bucket: "do_now",
+      override_date: morning.localDate,
+      reason: "You chose to do this now — your choice overrides the planner for today.",
+    });
 
     const replanned = planFlow(firstPlan.doNow, { ...calmState, energyLevel: 1, mood: "Overwhelmed" }, morning);
-    expect(replanned.doNow[0]).toMatchObject({ id: baseTask.id, isOverridden: true });
+    expect(replanned.doNow[0]).toMatchObject({
+      id: baseTask.id,
+      override_bucket: "do_now",
+      override_date: morning.localDate,
+      reason: "You chose to do this now — your choice overrides the planner for today.",
+    });
 
     const nextMorning = getLocalTimeContext(new Date(2026, 9, 11, 9, 30));
     const nextDay = planFlow([overridden], { ...calmState, energyLevel: 1 }, nextMorning);
