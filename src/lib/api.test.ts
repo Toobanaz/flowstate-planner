@@ -116,7 +116,7 @@ describe("api", () => {
 
     const localTime = getLocalTimeContext(new Date(2026, 9, 10, 20, 30));
     const result = await planFlowAI(
-      { energyLevel: 4, mood: "Focused", notes: "" },
+      { energyLevel: 4, moods: ["Focused"], notes: "" },
       [
         {
           id: "task-1",
@@ -128,6 +128,8 @@ describe("api", () => {
           ai_classified: true,
           completed: false,
           created_at: "2026-04-06T00:00:00.000Z",
+          override_bucket: null,
+          override_date: null,
         },
       ],
       localTime
@@ -136,7 +138,7 @@ describe("api", () => {
     expect(mocks.invoke).toHaveBeenCalledWith("plan-flow-ai", {
       body: {
         energy_level: 4,
-        mood: "Focused",
+        moods: ["Focused"],
         local_context: localTime,
         tasks: [
           {

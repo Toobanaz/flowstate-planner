@@ -28,8 +28,8 @@ export function CheckInCard({ state, onStateChange, onPlanFlow, hasTasks }: Chec
       />
 
       <MoodSelector
-        value={state.mood}
-        onChange={(mood: Mood) => onStateChange({ ...state, mood })}
+        value={state.moods}
+        onChange={(moods: Mood[]) => onStateChange({ ...state, moods })}
       />
 
       <div className="space-y-2">
@@ -47,7 +47,7 @@ export function CheckInCard({ state, onStateChange, onPlanFlow, hasTasks }: Chec
         size="lg"
         className="w-full"
         onClick={onPlanFlow}
-        disabled={!state.mood || !hasTasks}
+        disabled={state.moods.length === 0 || !hasTasks}
       >
         <Leaf className="w-4 h-4" />
         Plan My Flow

@@ -20,6 +20,7 @@ export type Database = {
           energy_level: number
           id: string
           mood: string
+          moods: string[]
           notes: string | null
           user_id: string | null
         }
@@ -28,6 +29,7 @@ export type Database = {
           energy_level: number
           id?: string
           mood: string
+          moods?: string[]
           notes?: string | null
           user_id?: string | null
         }
@@ -36,6 +38,7 @@ export type Database = {
           energy_level?: number
           id?: string
           mood?: string
+          moods?: string[]
           notes?: string | null
           user_id?: string | null
         }

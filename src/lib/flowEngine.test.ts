@@ -11,11 +11,13 @@ const baseTask: Task = {
   ai_classified: true,
   completed: false,
   created_at: "2026-04-06T00:00:00.000Z",
+  override_bucket: null,
+  override_date: null,
 };
 
 const calmState: UserState = {
   energyLevel: 3,
-  mood: "Calm",
+  moods: ["Calm"],
   notes: "",
 };
 
@@ -55,7 +57,7 @@ describe("planFlow", () => {
     const result = planFlow([
       baseTask,
       { ...baseTask, id: "light", title: "Reply to email", energy_required: 2, schedule_preference: "morning" },
-    ], { ...calmState, energyLevel: 5, mood: "Motivated" }, evening);
+    ], { ...calmState, energyLevel: 5, moods: ["Motivated"] }, evening);
     expect(result.tomorrow.map((task) => task.id)).toEqual(["task-1"]);
     expect(result.doNow.map((task) => task.id)).toEqual(["light"]);
     expect(result.timeline.morning).toEqual([]);
@@ -95,7 +97,7 @@ describe("planFlow", () => {
 
   it("does not schedule avoided tasks in the timeline", () => {
     const result = planFlow([baseTask], { ...calmState, energyLevel: 1 }, morning);
-    expect(result.avoid).toEqual([baseTask]);
+    expect(result.avoid.map((t) => t.id)).toEqual([baseTask.id]);
     expect(Object.values(result.timeline).flat()).toEqual([]);
   });
 
@@ -104,9 +106,9 @@ describe("planFlow", () => {
     const state = { ...calmState, energyLevel: 2 };
     const early = planFlow([task], state, morning);
     expect(early.doNow).toEqual([]);
-    expect(early.timeline.afternoon).toEqual([task]);
+    expect(early.timeline.afternoon.map((t) => t.id)).toEqual([task.id]);
     const late = planFlow([task], state, getLocalTimeContext(new Date(2026, 9, 10, 20)));
-    expect(late.tomorrow).toEqual([task]);
+    expect(late.tomorrow.map((t) => t.id)).toEqual([task.id]);
     expect(late.doNow).toEqual([]);
   });
 

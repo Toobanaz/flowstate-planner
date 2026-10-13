@@ -23,7 +23,7 @@ export interface PlannedTask extends Task {
 
 export interface UserState {
   energyLevel: number;
-  mood: Mood | null;
+  moods: Mood[];
   notes: string;
 }
 
@@ -97,12 +97,65 @@ export function isOverrideActive(task: Task, localDate: string): boolean {
   return task.override_bucket === "do_now" && task.override_date === localDate;
 }
 
-export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTimeContext()): FlowResult {
-  let moodModifier = 0;
-  if (state.mood === "Overwhelmed" || state.mood === "Anxious") moodModifier = -1;
-  if (state.mood === "Motivated") moodModifier = 1;
+export const MAX_MOODS = 2;
+const ALL_MOODS: Mood[] = ["Focused", "Overwhelmed", "Calm", "Anxious", "Motivated"];
 
-  const effectiveEnergy = Math.min(5, Math.max(1, state.energyLevel + moodModifier));
+/** Accepts new array records and old single-mood records ("Calm") alike. */
+export function normalizeMoods(input: unknown): Mood[] {
+  const list = Array.isArray(input) ? input : typeof input === "string" && input ? [input] : [];
+  const valid = list.filter((m): m is Mood => ALL_MOODS.includes(m as Mood));
+  return Array.from(new Set(valid)).slice(0, MAX_MOODS);
+}
+
+export type MoodPriority = "small-first" | "deep-first" | "creative-first" | "balanced";
+
+export interface MoodProfile {
+  /** Added to the energy slider value before clamping to 1–5. */
+  energyModifier: number;
+  /** How the Do Now list is ordered. */
+  priority: MoodPriority;
+  /** Optional cap on Do Now length (overwhelm keeps the list short). */
+  doNowLimit: number | null;
+}
+
+/**
+ * Single source of truth for how mood combinations shape the plan.
+ * Rules are checked top-down; the first matching priority wins:
+ *
+ * 1. Overwhelmed or Anxious present → small tasks first, energy −1.
+ *    This wins even when Motivated is also picked: stress beats drive.
+ *    Overwhelmed additionally caps Do Now at 3 tasks.
+ * 2. Focused + Motivated → deep work first, energy +1.
+ * 3. Focused alone (or with Calm) → deep work first, no energy change.
+ * 4. Calm (alone or with Motivated) → creative & personal tasks first.
+ * 5. Motivated alone → +1 energy, balanced order.
+ * Energy modifiers never stack beyond ±1.
+ */
+export function getMoodProfile(input: unknown): MoodProfile {
+  const moods = normalizeMoods(input);
+  const has = (m: Mood) => moods.includes(m);
+
+  if (has("Overwhelmed") || has("Anxious")) {
+    return { energyModifier: -1, priority: "small-first", doNowLimit: has("Overwhelmed") ? 3 : null };
+  }
+  const energyModifier = has("Motivated") ? 1 : 0;
+  if (has("Focused")) return { energyModifier, priority: "deep-first", doNowLimit: null };
+  if (has("Calm")) return { energyModifier, priority: "creative-first", doNowLimit: null };
+  return { energyModifier, priority: "balanced", doNowLimit: null };
+}
+
+const creativeRank: Record<string, number> = { Creative: 0, Social: 1, Errands: 2 };
+
+function sortByPriority(list: PlannedTask[], priority: MoodPriority) {
+  if (priority === "deep-first") list.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a));
+  else if (priority === "creative-first")
+    list.sort((a, b) => (creativeRank[a.tag ?? ""] ?? 9) - (creativeRank[b.tag ?? ""] ?? 9) || getTaskEnergy(a) - getTaskEnergy(b));
+  else list.sort((a, b) => getTaskEnergy(a) - getTaskEnergy(b));
+}
+
+export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTimeContext()): FlowResult {
+  const profile = getMoodProfile(state.moods);
+  const effectiveEnergy = Math.min(5, Math.max(1, state.energyLevel + profile.energyModifier));
 
   const doNow: PlannedTask[] = [];
   const doLater: PlannedTask[] = [];
@@ -177,8 +230,9 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   }
 
   // Smart UX: if overwhelmed, limit doNow to small tasks (max 3)
-  if (state.mood === "Overwhelmed" && doNow.length > 3) {
-    const overflow = doNow.splice(3);
+  sortByPriority(doNow, profile.priority);
+  if (profile.doNowLimit !== null && doNow.length > profile.doNowLimit) {
+    const overflow = doNow.splice(profile.doNowLimit);
     overflow.forEach((t) => {
       t.reason = "You're feeling overwhelmed, so the list stays short — this moves to later.";
     });
@@ -192,11 +246,6 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
       t.reason = `Your energy is ${effectiveEnergy}/5, so the list stays short — this moves to later.`;
     });
     doLater.push(...overflow);
-  }
-
-  // If focused, prioritize deep work to top
-  if (state.mood === "Focused") {
-    doNow.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a));
   }
 
   return { doNow, doLater, avoid, tomorrow, localTime, timeline };
