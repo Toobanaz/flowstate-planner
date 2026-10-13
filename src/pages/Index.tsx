@@ -27,7 +27,7 @@ export default function Index() {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [userState, setUserState] = useState<UserState>({ energyLevel: 3, mood: null, notes: "" });
+  const [userState, setUserState] = useState<UserState>({ energyLevel: 3, moods: [], notes: "" });
   const [flowResult, setFlowResult] = useState<FlowResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [isClassifying, setIsClassifying] = useState(false);
@@ -128,9 +128,9 @@ export default function Index() {
     const localTime = getLocalTimeContext();
     const fallbackResult = planFlow(tasks, userState, localTime);
 
-    if (userState.mood) {
+    if (userState.moods.length > 0) {
       try {
-        await saveDailyLog(userState.energyLevel, userState.mood, userState.notes);
+        await saveDailyLog(userState.energyLevel, userState.moods, userState.notes);
       } catch (e) {
         console.error("Failed to save daily log:", e);
       }

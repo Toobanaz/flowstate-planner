@@ -11,11 +11,13 @@ const baseTask: Task = {
   ai_classified: true,
   completed: false,
   created_at: "2026-04-06T00:00:00.000Z",
+  override_bucket: null,
+  override_date: null,
 };
 
 const calmState: UserState = {
   energyLevel: 3,
-  mood: "Calm",
+  moods: ["Calm"],
   notes: "",
 };
 
@@ -55,7 +57,7 @@ describe("planFlow", () => {
     const result = planFlow([
       baseTask,
       { ...baseTask, id: "light", title: "Reply to email", energy_required: 2, schedule_preference: "morning" },
-    ], { ...calmState, energyLevel: 5, mood: "Motivated" }, evening);
+    ], { ...calmState, energyLevel: 5, moods: ["Motivated"] }, evening);
     expect(result.tomorrow.map((task) => task.id)).toEqual(["task-1"]);
     expect(result.doNow.map((task) => task.id)).toEqual(["light"]);
     expect(result.timeline.morning).toEqual([]);

@@ -84,11 +84,12 @@ export async function toggleTaskComplete(id: string, completed: boolean): Promis
 }
 
 // Daily logs
-export async function saveDailyLog(energyLevel: number, mood: string, notes: string): Promise<void> {
+export async function saveDailyLog(energyLevel: number, moods: string[], notes: string): Promise<void> {
   const userId = await getCurrentUserId();
   const { error } = await supabase.from("daily_logs").insert({
     energy_level: energyLevel,
-    mood,
+    mood: moods[0],
+    moods,
     notes,
     user_id: userId,
   });
@@ -110,7 +111,7 @@ export async function planFlowAI(state: UserState, tasks: Task[], localTime = ge
   const { data, error } = await supabase.functions.invoke("plan-flow-ai", {
     body: {
       energy_level: state.energyLevel,
-      mood: state.mood,
+      moods: state.moods,
       local_context: localTime,
       tasks: tasks.map((task) => ({
         id: task.id,
@@ -127,8 +128,8 @@ export async function planFlowAI(state: UserState, tasks: Task[], localTime = ge
 }
 
 // AI insights
-export async function getInsightsAI(): Promise<Insight[]> {
-  const { data, error } = await supabase.functions.invoke("get-insights");
+export async function getInsightsAI(currentMoods: string[] = []): Promise<Insight[]> {
+  const { data, error } = await supabase.functions.invoke("get-insights", { body: { moods: currentMoods } });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data.insights || [];
