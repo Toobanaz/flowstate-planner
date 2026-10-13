@@ -14,6 +14,7 @@ type DataRow = {
 type DailyLogRow = DataRow & {
   energy_level: number;
   mood: string;
+  moods?: string[] | null;
   notes?: string | null;
 };
 
@@ -25,6 +26,12 @@ type TaskRow = DataRow & {
   completed?: boolean | null;
 };
 
+// Old records only have `mood`; new ones have `moods` (up to 2).
+function logMoods(log: DailyLogRow): string[] {
+  if (Array.isArray(log.moods) && log.moods.length) return log.moods.slice(0, 2);
+  return log.mood ? [log.mood] : [];
+}
+
 type JsonObject = Record<string, unknown>;
 
 serve(async (req) => {
@@ -34,9 +41,17 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const body = await req.json().catch(() => ({}));
+    const currentMoods: string[] = Array.isArray(body?.moods)
+      ? body.moods.filter((m: unknown) => typeof m === "string").slice(0, 2)
+      : [];
+
+    // Act as the signed-in user so RLS only returns their own data.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return jsonResponse({ error: "Not signed in" }, 401);
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+      global: { headers: { Authorization: authHeader } },
+    });
 
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -78,7 +93,7 @@ serve(async (req) => {
     const weeklyData = {
       energy_logs: logs.map((log) => ({
         energy: log.energy_level,
-        mood: log.mood,
+        moods: logMoods(log),
         notes: log.notes,
         date: log.created_at,
       })),
@@ -91,7 +106,8 @@ serve(async (req) => {
           effort_level: task.effort_level,
           date: task.created_at,
         })),
-      moods: logs.map((log) => ({ mood: log.mood, date: log.created_at })),
+      moods: logs.map((log) => ({ moods: logMoods(log), date: log.created_at })),
+      current_moods: currentMoods,
     };
 
     const prompt = `Analyze this user's productivity patterns.

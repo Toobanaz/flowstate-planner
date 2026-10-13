@@ -164,7 +164,7 @@ export default function Index() {
   const handleGetInsights = useCallback(async () => {
     setInsightsLoading(true);
     try {
-      const result = await getInsightsAI();
+      const result = await getInsightsAI(userState.moods);
       setInsights(result);
     } catch (e: unknown) {
       console.error("Failed to get insights:", e);

@@ -21,7 +21,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { energy_level, mood, tasks, local_context } = await req.json();
+    const { energy_level, mood: legacyMood, moods: rawMoods, tasks, local_context } = await req.json();
+    const moodList: string[] = (Array.isArray(rawMoods) ? rawMoods : legacyMood ? [legacyMood] : [])
+      .filter((m: unknown) => typeof m === "string")
+      .slice(0, 2);
+    const mood = moodList.join(" + ");
     if (!Number.isInteger(energy_level) || energy_level < 1 || energy_level > 5) {
       return jsonResponse({ error: "Energy level must be an integer from 1 to 5" }, 400);
     }

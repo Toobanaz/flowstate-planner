@@ -128,6 +128,8 @@ describe("api", () => {
           ai_classified: true,
           completed: false,
           created_at: "2026-04-06T00:00:00.000Z",
+          override_bucket: null,
+          override_date: null,
         },
       ],
       localTime
