@@ -170,11 +170,6 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   const avoid: PlannedTask[] = [];
   const tomorrow: PlannedTask[] = [];
   const timeline = { morning: [] as PlannedTask[], afternoon: [] as PlannedTask[], evening: [] as PlannedTask[] };
-  const doNow: PlannedTask[] = [];
-  const doLater: PlannedTask[] = [];
-  const avoid: PlannedTask[] = [];
-  const tomorrow: PlannedTask[] = [];
-  const timeline = { morning: [] as PlannedTask[], afternoon: [] as PlannedTask[], evening: [] as PlannedTask[] };
   const periods: SchedulePreference[] = ["morning", "afternoon", "evening"];
   const currentIndex = periods.indexOf(localTime.period);
 
