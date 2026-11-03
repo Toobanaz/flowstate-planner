@@ -50,6 +50,8 @@ export type Database = {
           completed: boolean | null
           created_at: string
           effort_level: string | null
+          deadline_date: string | null
+          deadline_time: string | null
           energy_required: number | null
           id: string
           override_bucket: string | null
@@ -64,6 +66,8 @@ export type Database = {
           completed?: boolean | null
           created_at?: string
           effort_level?: string | null
+          deadline_date?: string | null
+          deadline_time?: string | null
           energy_required?: number | null
           id?: string
           override_bucket?: string | null
@@ -78,6 +82,8 @@ export type Database = {
           completed?: boolean | null
           created_at?: string
           effort_level?: string | null
+          deadline_date?: string | null
+          deadline_time?: string | null
           energy_required?: number | null
           id?: string
           override_bucket?: string | null

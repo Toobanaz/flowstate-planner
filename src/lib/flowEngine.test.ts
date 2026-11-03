@@ -13,6 +13,8 @@ const baseTask: Task = {
   created_at: "2026-04-06T00:00:00.000Z",
   override_bucket: null,
   override_date: null,
+  deadline_date: null,
+  deadline_time: null,
 };
 
 const calmState: UserState = {
@@ -170,5 +172,37 @@ describe("planFlow", () => {
     const nextDay = planFlow([overridden], { ...calmState, energyLevel: 1 }, nextMorning);
     expect(nextDay.doNow).toEqual([]);
     expect(nextDay.avoid.map((task) => task.id)).toEqual([baseTask.id]);
+  });
+
+  it("prioritizes a deadline in the current period even when energy is low", () => {
+    const dueSoon = { ...baseTask, deadline_date: morning.localDate, deadline_time: "10:30" };
+    const result = planFlow([dueSoon], { ...calmState, energyLevel: 1 }, morning);
+
+    expect(result.doNow.map((task) => task.id)).toEqual([baseTask.id]);
+    expect(result.doNow[0].reason).toContain("Due today at 10:30 AM");
+    expect(result.avoid).toEqual([]);
+  });
+
+  it("places tomorrow's deadline in the generated plan rather than persisting a relative label", () => {
+    const result = planFlow(
+      [{ ...baseTask, deadline_date: "2026-10-11", deadline_time: "14:00" }],
+      { ...calmState, energyLevel: 5 },
+      morning
+    );
+
+    expect(result.tomorrow.map((task) => task.id)).toEqual([baseTask.id]);
+    expect(result.tomorrow[0].reason).toContain("tomorrow at 2:00 PM");
+  });
+
+  it("schedules a later same-day deadline instead of setting it aside for low energy", () => {
+    const result = planFlow(
+      [{ ...baseTask, deadline_date: morning.localDate, deadline_time: "16:00" }],
+      { ...calmState, energyLevel: 1 },
+      morning
+    );
+
+    expect(result.doLater.map((task) => task.id)).toEqual([baseTask.id]);
+    expect(result.timeline.afternoon.map((task) => task.id)).toEqual([baseTask.id]);
+    expect(result.avoid).toEqual([]);
   });
 });

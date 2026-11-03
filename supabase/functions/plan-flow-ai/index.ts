@@ -13,6 +13,8 @@ type PlanTask = {
   category?: string | null;
   energy_required?: number | null;
   effort_level?: string | null;
+  deadline_date?: string | null;
+  deadline_time?: string | null;
 };
 
 type JsonObject = Record<string, unknown>;
@@ -41,7 +43,7 @@ serve(async (req) => {
 
     const safeTasks = tasks as PlanTask[];
     const taskList = safeTasks
-      .map((task) => `- ${task.title} (${task.category ?? "Uncategorized"}, energy ${task.energy_required ?? 3}, effort ${task.effort_level ?? "Medium"})`)
+      .map((task) => `- ${task.title} (${task.category ?? "Uncategorized"}, energy ${task.energy_required ?? 3}, effort ${task.effort_level ?? "Medium"}, deadline date ${task.deadline_date ?? "none"}, deadline time ${task.deadline_time ?? "none"})`)
       .join("\n");
 
     const prompt = `You are a calm, supportive productivity coach.
@@ -63,6 +65,9 @@ suggestion when deferring. The schedule time for those deferred tasks is Morning
 For lighter tasks with a past preferred period, use the current or a later period.
 Quote the EXACT original task title in advice so the user knows which task you mean.
 Never rename tasks, and use exact original titles in schedule entries.
+Treat deadlines as hard constraints. A time without a date means today in the user's local time.
+Never schedule a task after its deadline. When a deadline conflicts with the user's energy or mood,
+prefer a small achievable step before the deadline and call out the urgency in the suggestion.
 
 Tasks:
 ${taskList}

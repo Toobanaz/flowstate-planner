@@ -53,10 +53,10 @@ export default function Index() {
       .finally(() => setTasksLoading(false));
   }, [user]);
 
-  const addTask = useCallback(async (title: string) => {
+  const addTask = useCallback(async (title: string, deadlineDate: string | null, deadlineTime: string | null) => {
     setIsClassifying(true);
     try {
-      const newTask = await createTask(title);
+      const newTask = await createTask(title, deadlineDate, deadlineTime);
       setTasks((prev) => [newTask, ...prev]);
       setFlowResult(null);
 

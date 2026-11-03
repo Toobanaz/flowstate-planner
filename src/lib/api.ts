@@ -36,11 +36,11 @@ export async function fetchTasks(): Promise<Task[]> {
   return (data || []).map(mapDbTask);
 }
 
-export async function createTask(title: string): Promise<Task> {
+export async function createTask(title: string, deadlineDate: string | null = null, deadlineTime: string | null = null): Promise<Task> {
   const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from("tasks")
-    .insert({ title, user_id: userId })
+    .insert({ title, user_id: userId, deadline_date: deadlineDate, deadline_time: deadlineTime })
     .select()
     .single();
   if (error) throw error;
@@ -132,6 +132,8 @@ export async function planFlowAI(state: UserState, tasks: Task[], localTime = ge
         category: task.tag,
         energy_required: task.energy_required,
         effort_level: task.effort_level,
+        deadline_date: task.deadline_date,
+        deadline_time: task.deadline_time,
       })),
     },
   });
@@ -161,6 +163,8 @@ function mapDbTask(row: TaskRow): Task {
     created_at: row.created_at,
     override_bucket: row.override_bucket ?? null,
     override_date: row.override_date ?? null,
+    deadline_date: row.deadline_date ?? null,
+    deadline_time: row.deadline_time ?? null,
   };
 }
 

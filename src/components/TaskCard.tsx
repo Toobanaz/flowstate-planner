@@ -1,5 +1,5 @@
 import { Task, getTaskEnergy } from "@/lib/flowEngine";
-import { X, Brain, Palette, FileText, Users, ShoppingBag, Sparkles, Check, ArrowUp } from "lucide-react";
+import { X, Brain, Palette, FileText, Users, ShoppingBag, Sparkles, Check, ArrowUp, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const tagStyles: Record<string, string> = {
@@ -76,6 +76,12 @@ export function TaskCard({
           <span className="text-xs text-muted-foreground">{task.effort_level} effort</span>
         )}
         <span className="text-xs text-muted-foreground">Energy {getTaskEnergy(task)}/5</span>
+        {(task.deadline_date || task.deadline_time) && (
+          <span className="flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <CalendarClock className="h-3 w-3" />
+            Due {formatDeadline(task.deadline_date, task.deadline_time)}
+          </span>
+        )}
         {showSchedule && task.schedule_preference && (
           <span className="text-xs text-muted-foreground capitalize">{task.schedule_preference}</span>
         )}
@@ -114,4 +120,13 @@ export function TaskCard({
       )}
     </div>
   );
+}
+
+function formatDeadline(date: string | null, time: string | null) {
+  const dateLabel = date
+    ? new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+    : "today";
+  if (!time) return dateLabel;
+  const timeLabel = new Date(`2000-01-01T${time}`).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${dateLabel} at ${timeLabel}`;
 }

@@ -16,10 +16,13 @@ export interface Task {
   created_at: string;
   override_bucket: string | null;
   override_date: string | null;
+  deadline_date: string | null;
+  deadline_time: string | null;
 }
 
 export interface PlannedTask extends Task {
   reason: string;
+  isOverridden?: boolean;
 }
 
 export interface UserState {
@@ -178,12 +181,39 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
 
   for (const task of sorted) {
     const required = getTaskEnergy(task);
+    const deadlineDate = task.deadline_date ?? (task.deadline_time ? localTime.localDate : null);
+    const deadlinePeriod = task.deadline_time ? periodForTime(task.deadline_time) : null;
+    const deadlineMinutes = task.deadline_time ? minutesForTime(task.deadline_time) : null;
+    const nowMinutes = localTime.hour * 60 + Number(localTime.localTime.slice(3, 5));
 
     if (isOverrideActive(task, localTime.localDate)) {
       const planned: PlannedTask = {
         ...task,
         reason: "You chose to do this now — your choice overrides the planner for today.",
       };
+      doNow.push(planned);
+      timeline[localTime.period].push(planned);
+      continue;
+    }
+
+    if (deadlineDate && deadlineDate < localTime.localDate) {
+      const planned = withPlacement(task, "Deadline has passed — make this the next priority.");
+      doNow.push(planned);
+      timeline[localTime.period].push(planned);
+      continue;
+    }
+
+    if (deadlineDate === tomorrowDate(localTime.localDate)) {
+      tomorrow.push(withPlacement(task, task.deadline_time
+        ? `Due tomorrow at ${formatTime(task.deadline_time)} — plan it for tomorrow ${deadlinePeriod}.`
+        : "Due tomorrow — plan it early enough to finish comfortably."));
+      continue;
+    }
+
+    if (deadlineDate === localTime.localDate && (!deadlineMinutes || deadlineMinutes <= nowMinutes || deadlinePeriod === localTime.period)) {
+      const planned = withPlacement(task, task.deadline_time
+        ? `Due today at ${formatTime(task.deadline_time)} — prioritize it in this ${localTime.period}.`
+        : "Due today — prioritize it now while there is still time.");
       doNow.push(planned);
       timeline[localTime.period].push(planned);
       continue;
@@ -199,7 +229,7 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
       });
       continue;
     }
-    if (required > effectiveEnergy + 1) {
+    if (required > effectiveEnergy + 1 && deadlineDate !== localTime.localDate) {
       avoid.push({
         ...task,
         reason: `Needs ${required}/5 energy, but you're at ${effectiveEnergy}/5 — revisit when your energy is higher.`,
@@ -208,7 +238,11 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
     }
     const preferred = task.schedule_preference ?? (required >= 4 ? "morning" : required >= 3 ? "afternoon" : localTime.period);
     let slotIndex = Math.max(currentIndex, periods.indexOf(preferred));
-    if (required > effectiveEnergy && slotIndex === currentIndex) slotIndex += 1;
+    if (deadlineDate === localTime.localDate && deadlinePeriod) {
+      const deadlineIndex = periods.indexOf(deadlinePeriod);
+      slotIndex = required > effectiveEnergy ? deadlineIndex : Math.min(slotIndex, deadlineIndex);
+    }
+    if (required > effectiveEnergy && slotIndex === currentIndex && deadlineDate !== localTime.localDate) slotIndex += 1;
     const slot = periods[slotIndex];
     if (!slot) {
       tomorrow.push({
@@ -257,6 +291,28 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   }
 
   return { doNow, doLater, avoid, tomorrow, localTime, timeline };
+}
+
+function minutesForTime(time: string): number {
+  const [hours, minutes] = time.slice(0, 5).split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function periodForTime(time: string): SchedulePreference {
+  const hour = Number(time.slice(0, 2));
+  return hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+}
+
+function tomorrowDate(localDate: string): string {
+  const date = new Date(`${localDate}T12:00:00`);
+  date.setDate(date.getDate() + 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function formatTime(time: string): string {
+  const [hours, minutes] = time.slice(0, 5).split(":").map(Number);
+  const suffix = hours >= 12 ? "PM" : "AM";
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${suffix}`;
 }
 
 function withPlacement(task: Task, reason: string, isOverridden = false): PlannedTask {
