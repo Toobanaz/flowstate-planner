@@ -153,7 +153,7 @@ describe("planFlow", () => {
     const firstPlan = planFlow([overridden], { ...calmState, energyLevel: 1 }, morning);
     expect(firstPlan.doNow[0]).toMatchObject({ id: baseTask.id, isOverridden: true });
 
-    const replanned = planFlow(firstPlan.doNow, { ...calmState, energyLevel: 1, mood: "Overwhelmed" }, morning);
+    const replanned = planFlow(firstPlan.doNow, { ...calmState, energyLevel: 1, moods: ["Overwhelmed"] }, morning);
     expect(replanned.doNow[0]).toMatchObject({ id: baseTask.id, isOverridden: true });
 
     const nextMorning = getLocalTimeContext(new Date(2026, 9, 11, 9, 30));
