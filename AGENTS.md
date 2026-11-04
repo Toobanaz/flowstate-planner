@@ -8,8 +8,11 @@
 ## Working with Lovable
 
 - This project is also edited in Lovable and synced through GitHub. Only edit files in the repo.
-- Never ask for, store, or use Supabase credentials. Never run commands that change the live database.
-- For database changes: write a SQL file in supabase/migrations/ (with Row Level Security) and add a note in HANDOFF.md saying "Needs applying via Lovable", with a one-line description.
+- Never print, commit, or store database passwords, access tokens, service-role keys, or other Supabase secrets. Browser/CLI authentication may be used without exposing its credentials.
+- Database schema changes must be versioned in `supabase/migrations/` and include user-scoped Row Level Security where applicable.
+- Codex may inspect and deploy reviewed migrations and edge functions through the authenticated Supabase CLI when the user explicitly requests it. Require explicit confirmation before destructive production operations or editing production records.
+- Keep generated Supabase TypeScript types synchronized after schema changes.
+- When this project uses an external Supabase backend, note unapplied migrations and undeployed functions in HANDOFF.md without requiring Lovable to be the deployment gateway.
 - For edge functions: edit code in supabase/functions/ and note in HANDOFF.md that it needs deploying.
 - Don't change Lovable-managed config files unless I ask.
 - Don't commit or push; leave that to me.

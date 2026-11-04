@@ -6,12 +6,16 @@ Running to-do list for changes that must be applied or deployed through Lovable.
 
 ### Database migrations
 
-- [ ] **Needs applying via Lovable** — `supabase/migrations/20261103090000_add_task_deadlines.sql`: Adds optional local deadline date and time fields to tasks.
-- [ ] **Needs applying via Lovable** — `supabase/migrations/20261011090000_add_daily_task_override.sql`: Adds secure, same-day task bucket overrides and user-scoped Row Level Security policies.
+All repository migrations through `20261103100000_add_moods_to_daily_logs.sql` are applied to external Supabase project `lemounryblppsiuoljjh`.
 
 ### Edge functions
 
-- [ ] `supabase/functions/plan-flow-ai`: Needs deploying so AI planning treats task deadlines as hard constraints.
+- [x] External Supabase project `lemounryblppsiuoljjh` is connected in Lovable and `LOVABLE_API_KEY` is provisioned.
+- [x] `classify-task`, `plan-flow-ai`, and `get-insights` deployed and ACTIVE in external Supabase project `lemounryblppsiuoljjh`.
+
+### Authentication
+
+- [ ] In Supabase Authentication settings, set Site URL to `https://flowstateenergy.lovable.app` and enable Google with its OAuth client ID and secret. Add `https://lemounryblppsiuoljjh.supabase.co/auth/v1/callback` as an authorized redirect URI in Google Cloud.
 
 ## Completed
 
