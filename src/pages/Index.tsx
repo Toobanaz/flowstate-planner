@@ -254,8 +254,6 @@ export default function Index() {
         <CheckInCard
           state={userState}
           onStateChange={setUserState}
-          onPlanFlow={handlePlanFlow}
-          hasTasks={activeTasks.length > 0}
         />
 
         <Separator className="bg-border/80" />
@@ -263,6 +261,24 @@ export default function Index() {
         <section className="space-y-4 animate-fade-up-delay-1">
           <h2 className="text-lg font-semibold text-foreground">Your Tasks</h2>
           <TaskInput onAdd={addTask} isClassifying={isClassifying} />
+
+          <div className="space-y-2 pt-1">
+            <Button
+              variant="flow"
+              size="lg"
+              className="w-full"
+              onClick={handlePlanFlow}
+              disabled={userState.moods.length === 0 || activeTasks.length === 0 || loading || isClassifying}
+            >
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Leaf className="w-4 h-4" />}
+              {loading ? "Planning your flow..." : "Plan My Flow"}
+            </Button>
+            {activeTasks.length === 0 ? (
+              <p className="text-center text-xs text-muted-foreground">Add at least one task to plan your flow 🌱</p>
+            ) : userState.moods.length === 0 ? (
+              <p className="text-center text-xs text-muted-foreground">Choose how you feel in the check-in above first.</p>
+            ) : null}
+          </div>
 
           {tasksLoading ? (
             <div className="text-center py-8">

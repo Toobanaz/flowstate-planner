@@ -1,17 +1,14 @@
 import { UserState, Mood } from "@/lib/flowEngine";
 import { EnergySlider } from "./EnergySlider";
 import { MoodSelector } from "./MoodSelector";
-import { Button } from "@/components/ui/button";
 import { Leaf } from "lucide-react";
 
 interface CheckInCardProps {
   state: UserState;
   onStateChange: (state: UserState) => void;
-  onPlanFlow: () => void;
-  hasTasks: boolean;
 }
 
-export function CheckInCard({ state, onStateChange, onPlanFlow, hasTasks }: CheckInCardProps) {
+export function CheckInCard({ state, onStateChange }: CheckInCardProps) {
   return (
     <div className="flow-card space-y-6 animate-fade-up">
       <div className="text-center space-y-1">
@@ -42,19 +39,6 @@ export function CheckInCard({ state, onStateChange, onPlanFlow, hasTasks }: Chec
         />
       </div>
 
-      <Button
-        variant="flow"
-        size="lg"
-        className="w-full"
-        onClick={onPlanFlow}
-        disabled={state.moods.length === 0 || !hasTasks}
-      >
-        <Leaf className="w-4 h-4" />
-        Plan My Flow
-      </Button>
-      {!hasTasks && (
-        <p className="text-center text-xs text-muted-foreground">Add some tasks below first 🌱</p>
-      )}
     </div>
   );
 }

@@ -36,8 +36,15 @@ export function TaskInput({ onAdd, isClassifying }: TaskInputProps) {
           disabled={isClassifying}
         />
         </div>
-        <Button type="button" variant={showDeadline ? "secondary" : "outline"} size="icon" className="rounded-xl h-[46px] w-[46px] shrink-0" onClick={() => setShowDeadline((value) => !value)} aria-label="Add deadline" title="Add deadline">
-          <CalendarClock className="w-5 h-5" />
+        <Button
+          type="button"
+          variant={showDeadline ? "secondary" : "outline"}
+          className="h-[46px] shrink-0 rounded-xl px-3"
+          onClick={() => setShowDeadline((value) => !value)}
+          aria-expanded={showDeadline}
+        >
+          <CalendarClock className="w-4 h-4" />
+          Add deadline
         </Button>
         <Button type="submit" size="icon" className="rounded-xl h-[46px] w-[46px] shrink-0" disabled={isClassifying || !title.trim()}>
           {isClassifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
