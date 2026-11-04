@@ -22,7 +22,7 @@ export interface Task {
 
 export interface PlannedTask extends Task {
   reason: string;
-  isOverridden?: boolean;
+  isOverridden: boolean;
 }
 
 export interface UserState {
@@ -36,16 +36,9 @@ export interface FlowResult {
   doLater: PlannedTask[];
   avoid: PlannedTask[];
   tomorrow: PlannedTask[];
-  doNow: PlannedTask[];
-  doLater: PlannedTask[];
-  avoid: PlannedTask[];
-  tomorrow: PlannedTask[];
   localTime: LocalTimeContext;
   aiSuggestion?: AISuggestion;
   timeline: {
-    morning: PlannedTask[];
-    afternoon: PlannedTask[];
-    evening: PlannedTask[];
     morning: PlannedTask[];
     afternoon: PlannedTask[];
     evening: PlannedTask[];
@@ -140,6 +133,7 @@ export interface MoodProfile {
  * 3. Focused alone (or with Calm) → deep work first, no energy change.
  * 4. Calm (alone or with Motivated) → creative & personal tasks first.
  * 5. Motivated alone → +1 energy, balanced order.
+ *
  * Energy modifiers never stack beyond ±1.
  */
 export function getMoodProfile(input: unknown): MoodProfile {
@@ -167,6 +161,7 @@ function sortByPriority(list: PlannedTask[], priority: MoodPriority) {
 export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTimeContext()): FlowResult {
   const profile = getMoodProfile(state.moods);
   const effectiveEnergy = Math.min(5, Math.max(1, state.energyLevel + profile.energyModifier));
+  const statedEnergy = state.energyLevel;
 
   const doNow: PlannedTask[] = [];
   const doLater: PlannedTask[] = [];
@@ -186,11 +181,9 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
     const deadlineMinutes = task.deadline_time ? minutesForTime(task.deadline_time) : null;
     const nowMinutes = localTime.hour * 60 + Number(localTime.localTime.slice(3, 5));
 
+    // Today-only user override always wins, even over avoid/tomorrow rules.
     if (isOverrideActive(task, localTime.localDate)) {
-      const planned: PlannedTask = {
-        ...task,
-        reason: "You chose to do this now — your choice overrides the planner for today.",
-      };
+      const planned = withPlacement(task, "You chose to do this now — your choice overrides the planner for today.", true);
       doNow.push(planned);
       timeline[localTime.period].push(planned);
       continue;
@@ -219,23 +212,16 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
       continue;
     }
 
+    // Late-night rest, and demanding evening tasks wait for tomorrow.
     if (localTime.hour < 6 || (localTime.hour >= 18 && required >= 4)) {
-      tomorrow.push({
-        ...task,
-        reason:
-          localTime.hour < 6
-            ? `It's ${localTime.localTime} — rest first. This fits tomorrow morning.`
-            : `Needs ${required}/5 energy and it's already evening — best tackled tomorrow morning.`,
-      });
+      tomorrow.push(withPlacement(task, tomorrowReason(required, localTime)));
       continue;
     }
     if (required > effectiveEnergy + 1 && deadlineDate !== localTime.localDate) {
-      avoid.push({
-        ...task,
-        reason: `Needs ${required}/5 energy, but you're at ${effectiveEnergy}/5 — revisit when your energy is higher.`,
-      });
+      avoid.push(withPlacement(task, energyMismatchReason(required, effectiveEnergy, statedEnergy)));
       continue;
     }
+
     const preferred = task.schedule_preference ?? (required >= 4 ? "morning" : required >= 3 ? "afternoon" : localTime.period);
     let slotIndex = Math.max(currentIndex, periods.indexOf(preferred));
     if (deadlineDate === localTime.localDate && deadlinePeriod) {
@@ -245,45 +231,33 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
     if (required > effectiveEnergy && slotIndex === currentIndex && deadlineDate !== localTime.localDate) slotIndex += 1;
     const slot = periods[slotIndex];
     if (!slot) {
-      tomorrow.push({
-        ...task,
-        reason: `No good slot left today — planned for tomorrow morning instead.`,
-      });
+      tomorrow.push(withPlacement(task, "No good slot left today — moved to tomorrow"));
       continue;
     }
     if (slot === localTime.period && required <= effectiveEnergy) {
-      const planned: PlannedTask = {
-        ...task,
-        reason: `Needs ${required}/5 energy — you have ${effectiveEnergy}/5, so it fits your ${localTime.period}.`,
-      };
+      const planned = withPlacement(task, `Needs ${required}/5 energy, within your ${effectiveEnergy}/5 energy now`);
       doNow.push(planned);
       timeline[slot].push(planned);
     } else {
-      const planned: PlannedTask = {
-        ...task,
-        reason:
-          required > effectiveEnergy
-            ? `Needs ${required}/5 energy — just above your current ${effectiveEnergy}/5, so save it for ${slot}.`
-            : `Needs ${required}/5 energy — a better fit for ${slot}.`,
-      };
+      const planned = withPlacement(task, laterReason(required, effectiveEnergy, statedEnergy, slot));
       doLater.push(planned);
       timeline[slot].push(planned);
     }
   }
 
-  // Smart UX: if overwhelmed, limit doNow to small tasks (max 3)
+  // Overwhelm: keep Do Now short (today-only overrides stay put).
   sortByPriority(doNow, profile.priority);
   if (profile.doNowLimit !== null && doNow.length > profile.doNowLimit) {
-    const overflow = doNow.splice(profile.doNowLimit);
+    const overflow = takeNonOverrideOverflow(doNow, profile.doNowLimit);
     overflow.forEach((t) => {
       t.reason = "You're feeling overwhelmed, so the list stays short — this moves to later.";
     });
     doLater.push(...overflow);
   }
 
-  // Low energy: suggest fewer
+  // Low energy: suggest fewer.
   if (effectiveEnergy <= 2 && doNow.length > 2) {
-    const overflow = doNow.splice(2);
+    const overflow = takeNonOverrideOverflow(doNow, 2);
     overflow.forEach((t) => {
       t.reason = `Your energy is ${effectiveEnergy}/5, so the list stays short — this moves to later.`;
     });
@@ -319,6 +293,7 @@ function withPlacement(task: Task, reason: string, isOverridden = false): Planne
   return { ...task, reason, isOverridden };
 }
 
+/** Drops non-override tasks past the limit; user-picked tasks are never overflowed out. */
 function takeNonOverrideOverflow(tasks: PlannedTask[], limit: number): PlannedTask[] {
   const overflowIds = new Set(tasks.filter((task) => !task.isOverridden).slice(limit).map((task) => task.id));
   const overflow = tasks.filter((task) => overflowIds.has(task.id));
@@ -346,6 +321,11 @@ function laterReason(
     return `Needs ${required}/5 energy, ${energy}; try ${slot}`;
   }
   return `Better in the ${slot} for a ${required}/5 energy task`;
+}
+
+function tomorrowReason(required: number, localTime: LocalTimeContext): string {
+  if (localTime.hour < 6) return `It's ${localTime.localTime} — rest first; this fits tomorrow`;
+  return `Needs ${required}/5 energy; too demanding for ${localTime.period}, moved to tomorrow`;
 }
 
 export function generateId(): string {
