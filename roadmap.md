@@ -8,4 +8,5 @@
 - [x] Add "Move to Do Now" override on Set Aside tasks: shows "Your choice", survives replan/refresh, expires next local day (verified in browser).
 - [x] Add tasks.override_bucket (NULL|'do_now') and tasks.override_date columns; verify RLS unchanged.
 - [ ] Re-verify blank-page report on live site (advise republish after Supabase switch).
-- [ ] Connect external Supabase project `flowstate-planner`: verify schema (tasks, daily_logs, override columns, moods array, RLS + grants), point app env at it, and re-verify the app end to end.
+- [x] Connect external Supabase project `flowstate-planner`: schema and access rules verified, app and published-site settings point at it.
+- [ ] Signed-in check on the new project — blocked: needs the user to confirm a test sign-up email or sign in themselves.
