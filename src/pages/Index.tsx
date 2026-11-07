@@ -6,7 +6,6 @@ import {
   createTask,
   deleteTask,
   toggleTaskComplete,
-  updateTaskOverride,
   updateTaskClassification,
   classifyTaskAI,
   saveDailyLog,
@@ -26,6 +25,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { generateLocalInsights, isCarriedOver } from "@/lib/history";
+import { removeFlowTask } from "@/lib/flowCustomization";
 
 export default function Index() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -99,7 +99,7 @@ export default function Index() {
 
   const removeTask = useCallback(async (id: string) => {
     setTasks((prev) => prev.filter((task) => task.id !== id));
-    setFlowResult(null);
+    setFlowResult((prev) => prev ? removeFlowTask(prev, id) : null);
     try {
       await deleteTask(id);
     } catch (e) {
@@ -112,9 +112,7 @@ export default function Index() {
     setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, completed } : task)));
     setFlowResult((prev) => {
       if (!prev || !completed) return null;
-      const remaining = [...prev.doNow, ...prev.doLater, ...prev.avoid, ...prev.tomorrow]
-        .filter((task) => task.id !== id);
-      return planFlow(remaining, userState, prev.localTime);
+      return removeFlowTask(prev, id);
     });
     try {
       await toggleTaskComplete(id, completed);
@@ -122,7 +120,7 @@ export default function Index() {
       console.error("Failed to toggle task:", e);
       toast.error("Failed to update task");
     }
-  }, [userState]);
+  }, []);
 
   const handlePlanFlow = useCallback(async () => {
     setLoading(true);
@@ -188,37 +186,6 @@ export default function Index() {
       setInsightsLoading(false);
     }
   }, [tasks, userState.moods]);
-
-  const handleMoveToDoNow = useCallback(async (id: string) => {
-    if (!flowResult) return;
-
-    const overrideDate = flowResult.localTime.localDate;
-    try {
-      await updateTaskOverride(id, "do_now", overrideDate);
-
-      setTasks((prev) => prev.map((task) => (
-        task.id === id
-          ? { ...task, override_bucket: "do_now", override_date: overrideDate }
-          : task
-      )));
-
-      const replanningTasks = [
-        ...flowResult.doNow,
-        ...flowResult.doLater,
-        ...flowResult.avoid,
-        ...flowResult.tomorrow,
-      ].map((task) => (
-        task.id === id
-          ? { ...task, override_bucket: "do_now" as const, override_date: overrideDate }
-          : task
-      ));
-
-      setFlowResult(planFlow(replanningTasks, userState, flowResult.localTime));
-    } catch (e) {
-      console.error("Failed to save task override:", e);
-      toast.error("Failed to move task to Do Now");
-    }
-  }, [flowResult, userState]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -351,9 +318,9 @@ export default function Index() {
               <FlowResults
                 result={flowResult}
                 userState={userState}
+                onChange={setFlowResult}
                 onRemove={removeTask}
                 onToggleComplete={handleToggleComplete}
-                onMoveToDoNow={handleMoveToDoNow}
               />
             )}
           </>
