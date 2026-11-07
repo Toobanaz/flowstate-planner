@@ -11,6 +11,7 @@ import {
   UserState,
   getLocalTimeContext,
 } from "./flowEngine";
+import type { DailyLog } from "./history";
 
 export interface TaskClassification {
   category: TaskTag;
@@ -107,6 +108,18 @@ export async function saveDailyLog(energyLevel: number, moods: string[], notes: 
     user_id: userId,
   });
   if (error) throw error;
+}
+
+export async function fetchRecentDailyLogs(): Promise<DailyLog[]> {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const { data, error } = await supabase
+    .from("daily_logs")
+    .select("*")
+    .gte("created_at", sevenDaysAgo.toISOString())
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data || [];
 }
 
 // AI classify

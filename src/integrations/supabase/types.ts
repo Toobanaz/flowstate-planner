@@ -49,8 +49,6 @@ export type Database = {
           ai_classified: boolean | null
           completed: boolean | null
           created_at: string
-          deadline_date: string | null
-          deadline_time: string | null
           effort_level: string | null
           deadline_date: string | null
           deadline_time: string | null
@@ -67,8 +65,6 @@ export type Database = {
           ai_classified?: boolean | null
           completed?: boolean | null
           created_at?: string
-          deadline_date?: string | null
-          deadline_time?: string | null
           effort_level?: string | null
           deadline_date?: string | null
           deadline_time?: string | null
@@ -85,8 +81,6 @@ export type Database = {
           ai_classified?: boolean | null
           completed?: boolean | null
           created_at?: string
-          deadline_date?: string | null
-          deadline_time?: string | null
           effort_level?: string | null
           deadline_date?: string | null
           deadline_time?: string | null

@@ -11,6 +11,7 @@ import {
   classifyTaskAI,
   saveDailyLog,
   getInsightsAI,
+  fetchRecentDailyLogs,
   planFlowAI,
 } from "@/lib/api";
 import { CheckInCard } from "@/components/CheckInCard";
@@ -18,11 +19,13 @@ import { TaskInput } from "@/components/TaskInput";
 import { TaskCard } from "@/components/TaskCard";
 import { FlowResults } from "@/components/FlowResults";
 import { InsightsCard } from "@/components/InsightsCard";
-import { Leaf, Loader2, LogOut } from "lucide-react";
+import { TaskHistoryCard } from "@/components/TaskHistoryCard";
+import { Leaf, Loader2, LogOut, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { generateLocalInsights, isCarriedOver } from "@/lib/history";
 
 export default function Index() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -164,16 +167,27 @@ export default function Index() {
 
   const handleGetInsights = useCallback(async () => {
     setInsightsLoading(true);
+    const localDate = getLocalTimeContext().localDate;
     try {
-      const result = await getInsightsAI(userState.moods);
-      setInsights(result);
-    } catch (e: unknown) {
-      console.error("Failed to get insights:", e);
-      toast.error(e instanceof Error ? e.message : "Failed to get insights");
+      const logs = await fetchRecentDailyLogs();
+      const savedHistoryInsights = generateLocalInsights(tasks, logs, localDate);
+      try {
+        const result = await getInsightsAI(userState.moods);
+        const needsMoreHistory = result.length === 1 && result[0].title === "Patterns Need Time";
+        setInsights(needsMoreHistory && savedHistoryInsights.length > 0 ? savedHistoryInsights : result.length > 0 ? result : savedHistoryInsights);
+      } catch (e) {
+        console.warn("AI insights unavailable; using saved history instead:", e);
+        setInsights(savedHistoryInsights);
+        toast.info("Showing insights from your saved history");
+      }
+    } catch (e) {
+      console.error("Failed to read insight history:", e);
+      setInsights(generateLocalInsights(tasks, [], localDate));
+      toast.info("Showing insights from your saved tasks");
     } finally {
       setInsightsLoading(false);
     }
-  }, []);
+  }, [tasks, userState.moods]);
 
   const handleMoveToDoNow = useCallback(async (id: string) => {
     if (!flowResult) return;
@@ -226,6 +240,9 @@ export default function Index() {
 
   const activeTasks = tasks.filter((task) => !task.completed);
   const completedTasks = tasks.filter((task) => task.completed);
+  const localDate = getLocalTimeContext().localDate;
+  const carriedTasks = activeTasks.filter((task) => isCarriedOver(task, localDate));
+  const newTasks = activeTasks.filter((task) => !isCarriedOver(task, localDate));
 
   return (
     <div className="min-h-screen bg-background">
@@ -290,23 +307,31 @@ export default function Index() {
               <p className="text-xs text-muted-foreground mt-1">AI will automatically classify them ✨</p>
             </div>
           ) : !flowResult && !loading ? (
-            <div className="space-y-2">
-              {activeTasks.map((task) => (
-                <TaskCard key={task.id} task={task} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
-              ))}
+            <div className="space-y-5">
+              {carriedTasks.length > 0 && (
+                <div className="space-y-2 rounded-2xl border border-primary/20 bg-accent/30 p-3">
+                  <div className="flex items-center gap-2 px-1">
+                    <RotateCcw className="w-4 h-4 text-primary" />
+                    <p className="text-xs font-medium text-foreground uppercase tracking-widest">
+                      Carried over ({carriedTasks.length})
+                    </p>
+                  </div>
+                  <p className="px-1 text-xs text-muted-foreground">Still unfinished from a previous day—kept here so nothing gets lost.</p>
+                  {carriedTasks.map((task) => (
+                    <TaskCard key={task.id} task={task} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
+                  ))}
+                </div>
+              )}
+              {newTasks.length > 0 && (
+                <div className="space-y-2">
+                  {carriedTasks.length > 0 && <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Added today</p>}
+                  {newTasks.map((task) => (
+                    <TaskCard key={task.id} task={task} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
+                  ))}
+                </div>
+              )}
             </div>
           ) : null}
-
-          {completedTasks.length > 0 && (
-            <div className="space-y-2 pt-4">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-                Completed ({completedTasks.length})
-              </p>
-              {completedTasks.map((task) => (
-                <TaskCard key={task.id} task={task} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
-              ))}
-            </div>
-          )}
         </section>
 
         {(loading || flowResult) && (
@@ -338,6 +363,10 @@ export default function Index() {
 
         <section aria-label="View Insights">
           <InsightsCard insights={insights} loading={insightsLoading} onFetch={handleGetInsights} />
+        </section>
+
+        <section aria-label="Task History">
+          <TaskHistoryCard tasks={completedTasks} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
         </section>
       </main>
     </div>

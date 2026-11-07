@@ -14,7 +14,10 @@ export function InsightsCard({ insights, loading, onFetch }: InsightsCardProps) 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-semibold text-foreground">View Insights</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-foreground">Your Insights</h2>
+            <p className="text-xs text-muted-foreground">Patterns from your last 7 days</p>
+          </div>
         </div>
         <Button variant="outline" size="sm" onClick={onFetch} disabled={loading} className="rounded-xl">
           {loading ? (
@@ -22,7 +25,7 @@ export function InsightsCard({ insights, loading, onFetch }: InsightsCardProps) 
           ) : (
             <>
               <Sparkles className="w-3.5 h-3.5 mr-1" />
-              Get Insight
+              Refresh
             </>
           )}
         </Button>
@@ -48,7 +51,7 @@ export function InsightsCard({ insights, loading, onFetch }: InsightsCardProps) 
 
       {!loading && insights.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-2">
-          Click "Get Insight" after a few days to see AI-powered productivity patterns ✨
+          View patterns from your saved check-ins, completed work, and carried-over tasks.
         </p>
       )}
     </div>
