@@ -165,12 +165,13 @@ export default function Index() {
 
   const handleGetInsights = useCallback(async () => {
     setInsightsLoading(true);
-    const localDate = getLocalTimeContext().localDate;
+    const localTime = getLocalTimeContext();
+    const localDate = localTime.localDate;
     try {
       const logs = await fetchRecentDailyLogs();
       const savedHistoryInsights = generateLocalInsights(tasks, logs, localDate);
       try {
-        const result = await getInsightsAI(userState.moods);
+        const result = await getInsightsAI(userState.moods, localTime);
         const needsMoreHistory = result.length === 1 && result[0].title === "Patterns Need Time";
         setInsights(needsMoreHistory && savedHistoryInsights.length > 0 ? savedHistoryInsights : result.length > 0 ? result : savedHistoryInsights);
       } catch (e) {

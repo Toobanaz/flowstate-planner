@@ -22,6 +22,7 @@ vi.mock("@/integrations/supabase/client", () => ({
 import {
   classifyTaskAI,
   fetchTasks,
+  getInsightsAI,
   planFlowAI,
   updateTaskClassification,
   updateTaskOverride,
@@ -167,5 +168,22 @@ describe("api", () => {
       },
     });
     expect(result.suggestion.try_first).toBe("Start small.");
+  });
+
+  it("sends browser-local time context to the insights function", async () => {
+    mocks.invoke.mockResolvedValueOnce({ data: { insights: [] }, error: null });
+    const localTime = {
+      localDate: "2026-11-09",
+      localTime: "10:30",
+      hour: 10,
+      timeZone: "Asia/Karachi",
+      period: "morning" as const,
+    };
+
+    await getInsightsAI(["Focused"], localTime);
+
+    expect(mocks.invoke).toHaveBeenCalledWith("get-insights", {
+      body: { moods: ["Focused"], local_context: localTime },
+    });
   });
 });

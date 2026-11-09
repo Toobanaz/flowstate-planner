@@ -156,8 +156,13 @@ export async function planFlowAI(state: UserState, tasks: Task[], localTime = ge
 }
 
 // AI insights
-export async function getInsightsAI(currentMoods: string[] = []): Promise<Insight[]> {
-  const { data, error } = await supabase.functions.invoke("get-insights", { body: { moods: currentMoods } });
+export async function getInsightsAI(
+  currentMoods: string[] = [],
+  localTime = getLocalTimeContext()
+): Promise<Insight[]> {
+  const { data, error } = await supabase.functions.invoke("get-insights", {
+    body: { moods: currentMoods, local_context: localTime },
+  });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data.insights || [];

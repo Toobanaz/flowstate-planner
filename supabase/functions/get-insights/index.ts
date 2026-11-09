@@ -34,6 +34,12 @@ function logMoods(log: DailyLogRow): string[] {
 
 type JsonObject = Record<string, unknown>;
 
+type LocalContext = {
+  localDate?: string;
+  localTime?: string;
+  timeZone?: string;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -45,6 +51,13 @@ serve(async (req) => {
     const currentMoods: string[] = Array.isArray(body?.moods)
       ? body.moods.filter((m: unknown) => typeof m === "string").slice(0, 2)
       : [];
+    const rawLocalContext = isJsonObject(body?.local_context) ? body.local_context : {};
+    const localContext: LocalContext = {
+      localDate: typeof rawLocalContext.localDate === "string" ? rawLocalContext.localDate : undefined,
+      localTime: typeof rawLocalContext.localTime === "string" ? rawLocalContext.localTime : undefined,
+      timeZone: typeof rawLocalContext.timeZone === "string" ? rawLocalContext.timeZone : undefined,
+    };
+    const timeZone = safeTimeZone(localContext.timeZone);
 
     // Act as the signed-in user so RLS only returns their own data.
     const authHeader = req.headers.get("Authorization");
@@ -75,7 +88,7 @@ serve(async (req) => {
     const logs = (logsResult.data || []) as DailyLogRow[];
     const tasks = (tasksResult.data || []) as TaskRow[];
     const dataDays = new Set(
-      [...logs, ...tasks].map((item) => new Date(item.created_at).toISOString().slice(0, 10))
+      [...logs, ...tasks].map((item) => formatLocalTimestamp(item.created_at, timeZone).slice(0, 10))
     );
 
     if (dataDays.size < 3) {
@@ -91,11 +104,16 @@ serve(async (req) => {
     }
 
     const weeklyData = {
+      user_local_context: {
+        time_zone: timeZone,
+        current_local_date: localContext.localDate,
+        current_local_time: localContext.localTime,
+      },
       energy_logs: logs.map((log) => ({
         energy: log.energy_level,
         moods: logMoods(log),
         notes: log.notes,
-        date: log.created_at,
+        local_timestamp: formatLocalTimestamp(log.created_at, timeZone),
       })),
       completed_tasks: tasks
         .filter((task) => task.completed)
@@ -104,9 +122,12 @@ serve(async (req) => {
           category: task.tag,
           energy_required: task.energy_required,
           effort_level: task.effort_level,
-          date: task.created_at,
+          task_created_local_timestamp: formatLocalTimestamp(task.created_at, timeZone),
         })),
-      moods: logs.map((log) => ({ moods: logMoods(log), date: log.created_at })),
+      moods: logs.map((log) => ({
+        moods: logMoods(log),
+        local_timestamp: formatLocalTimestamp(log.created_at, timeZone),
+      })),
       current_moods: currentMoods,
     };
 
@@ -118,6 +139,11 @@ ${JSON.stringify(weeklyData)}
 Give 2 short insights:
 - One about energy patterns
 - One actionable suggestion
+
+All timestamps above have already been converted to the user's local time zone (${timeZone}).
+Never convert them again or mention UTC. Only claim a peak energy time when at least two
+check-ins on different local dates support a similar time window. Otherwise describe the
+energy pattern without inventing a time. Task timestamps are creation times, not completion times.
 
 Keep it concise and encouraging.
 
@@ -179,6 +205,30 @@ function normalizeInsights(input: JsonObject) {
 
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function safeTimeZone(value: unknown): string {
+  if (typeof value !== "string" || !value) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value }).format(new Date());
+    return value;
+  } catch {
+    return "UTC";
+  }
+}
+
+function formatLocalTimestamp(timestamp: string, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(timestamp));
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
 }
 
 function parseJsonContent(content: string | null | undefined) {
