@@ -13,6 +13,7 @@ All repository migrations through `20261103100000_add_moods_to_daily_logs.sql` a
 - [x] External Supabase project `lemounryblppsiuoljjh` is connected in Lovable and `LOVABLE_API_KEY` is provisioned.
 - [x] `classify-task`, `plan-flow-ai`, and `get-insights` deployed and ACTIVE in external Supabase project `lemounryblppsiuoljjh`.
 - [ ] Redeploy `get-insights` so stored UTC timestamps are converted to the browser's local timezone before AI analysis.
+- [ ] Redeploy `plan-flow-ai` so the daily check-in note can guide workload and scheduling suggestions.
 
 ### Authentication
 

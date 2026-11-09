@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getMoodProfile, normalizeMoods, planFlow, getLocalTimeContext, Task, Mood } from "./flowEngine";
+import { getMoodProfile, getNoteDoNowLimit, normalizeMoods, planFlow, getLocalTimeContext, Task, Mood } from "./flowEngine";
 import { toggleMood } from "@/components/MoodSelector";
 
 const base: Task = {
@@ -71,5 +71,36 @@ describe("planFlow ordering by mood", () => {
   it("Motivated raises effective energy so deeper work fits now", () => {
     expect(order(["Motivated"], 3)).toContain("deep");
     expect(order([], 3)).not.toContain("deep");
+  });
+
+  it("respects an explicit request to focus on one thing", () => {
+    const result = planFlow(tasks, {
+      energyLevel: 4,
+      moods: ["Calm", "Motivated"],
+      notes: "Lots on my plate, want to pick one thing and finish it",
+    }, morning);
+    expect(result.doNow).toHaveLength(1);
+    expect(result.doLater).toHaveLength(2);
+    expect(result.doLater.every((task) => task.reason.includes("smaller focus list"))).toBe(true);
+  });
+
+  it("only limits the list when the note expresses a workload preference", () => {
+    expect(getNoteDoNowLimit("Want to pick one thing and finish it")).toBe(1);
+    expect(getNoteDoNowLimit("I have a dentist appointment later")).toBeNull();
+  });
+
+  it("keeps same-day deadlines visible even when the note asks for one task", () => {
+    const result = planFlow([
+      { ...base, id: "due-one", deadline_date: morning.localDate },
+      { ...base, id: "due-two", deadline_date: morning.localDate },
+      { ...base, id: "ordinary" },
+    ], {
+      energyLevel: 4,
+      moods: ["Calm", "Motivated"],
+      notes: "I only want to focus on one thing",
+    }, morning);
+
+    expect(result.doNow.map((task) => task.id)).toEqual(["due-one", "due-two"]);
+    expect(result.doLater.map((task) => task.id)).toEqual(["ordinary"]);
   });
 });

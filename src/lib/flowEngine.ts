@@ -149,6 +149,19 @@ export function getMoodProfile(input: unknown): MoodProfile {
   return { energyModifier, priority: "balanced", doNowLimit: null };
 }
 
+/** Turns explicit workload wishes in the optional check-in note into a Do Now capacity. */
+export function getNoteDoNowLimit(notes: string): number | null {
+  const text = notes.trim().toLowerCase();
+  if (!text) return null;
+  if (/\b(?:pick|choose|focus on|finish|do|start with)\s+(?:just\s+)?one\b|\bone (?:thing|task)\b/.test(text)) {
+    return 1;
+  }
+  if (/\b(?:short|small|manageable) list\b|\b(?:a few|few things)\b|\btoo much on my plate\b/.test(text)) {
+    return 3;
+  }
+  return null;
+}
+
 const creativeRank: Record<string, number> = { Creative: 0, Social: 1, Errands: 2 };
 
 function sortByPriority(list: PlannedTask[], priority: MoodPriority) {
@@ -247,17 +260,24 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
 
   // Overwhelm: keep Do Now short (today-only overrides stay put).
   sortByPriority(doNow, profile.priority);
-  if (profile.doNowLimit !== null && doNow.length > profile.doNowLimit) {
-    const overflow = takeNonOverrideOverflow(doNow, profile.doNowLimit);
+  prioritizeDeadlines(doNow, localTime.localDate);
+  const noteLimit = getNoteDoNowLimit(state.notes);
+  const doNowLimit = smallestLimit(profile.doNowLimit, noteLimit);
+  if (doNowLimit !== null && doNow.length > doNowLimit) {
+    const urgentCount = doNow.filter((task) => isDueTodayOrEarlier(task, localTime.localDate)).length;
+    const overflow = takeNonOverrideOverflow(doNow, Math.max(doNowLimit, urgentCount));
     overflow.forEach((t) => {
-      t.reason = "You're feeling overwhelmed, so the list stays short — this moves to later.";
+      t.reason = noteLimit !== null && noteLimit === doNowLimit
+        ? "You asked for a smaller focus list, so this moves to later."
+        : "You're feeling overwhelmed, so the list stays short — this moves to later.";
     });
     doLater.push(...overflow);
   }
 
   // Low energy: suggest fewer.
   if (effectiveEnergy <= 2 && doNow.length > 2) {
-    const overflow = takeNonOverrideOverflow(doNow, 2);
+    const urgentCount = doNow.filter((task) => isDueTodayOrEarlier(task, localTime.localDate)).length;
+    const overflow = takeNonOverrideOverflow(doNow, Math.max(2, urgentCount));
     overflow.forEach((t) => {
       t.reason = `Your energy is ${effectiveEnergy}/5, so the list stays short — this moves to later.`;
     });
@@ -265,6 +285,21 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   }
 
   return { doNow, doLater, avoid, tomorrow, localTime, timeline };
+}
+
+function smallestLimit(...limits: Array<number | null>): number | null {
+  const values = limits.filter((limit): limit is number => limit !== null);
+  return values.length ? Math.min(...values) : null;
+}
+
+function prioritizeDeadlines(tasks: PlannedTask[], localDate: string): void {
+  const rank = (task: Task) => isDueTodayOrEarlier(task, localDate) ? 0 : 1;
+  tasks.sort((a, b) => rank(a) - rank(b));
+}
+
+function isDueTodayOrEarlier(task: Task, localDate: string): boolean {
+  const deadlineDate = task.deadline_date ?? (task.deadline_time ? localDate : null);
+  return deadlineDate !== null && deadlineDate <= localDate;
 }
 
 function minutesForTime(time: string): number {

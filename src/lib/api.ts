@@ -138,6 +138,7 @@ export async function planFlowAI(state: UserState, tasks: Task[], localTime = ge
     body: {
       energy_level: state.energyLevel,
       moods: state.moods,
+      notes: state.notes,
       local_context: localTime,
       tasks: tasks.map((task) => ({
         id: task.id,

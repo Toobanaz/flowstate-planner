@@ -130,6 +130,7 @@ export function FlowResults({ result, onChange, onRemove, onToggleComplete }: Fl
         title={`Do Now · ${periodLabels[result.localTime.period]}`}
         description={result.doNow.length ? "Matches your energy right now" : "Drop a task here when you want to do it next"}
         icon={<CheckCircle2 className="w-5 h-5 text-primary" />}
+        tone="now"
       >
         {renderTasks(result.doNow, "do-now")}
       </PlanSection>
@@ -146,6 +147,7 @@ export function FlowResults({ result, onChange, onRemove, onToggleComplete }: Fl
             title={period === result.localTime.period ? `Later this ${period}` : `This ${period}`}
             description="Recheck your energy when this time arrives"
             icon={<span className="text-muted-foreground">{periodIcons[period]}</span>}
+            tone={period}
           >
             {renderTasks(tasks, `later-${period}`)}
           </PlanSection>
@@ -153,21 +155,38 @@ export function FlowResults({ result, onChange, onRemove, onToggleComplete }: Fl
       </section>
 
       <Separator className="bg-border/80" />
-      <PlanSection title="Tomorrow · After rest" description="A fresh start when you've had time to recharge" icon={<Sun className="w-5 h-5 text-primary" />}>
+      <PlanSection title="Tomorrow · After rest" description="A fresh start when you've had time to recharge" icon={<Sun className="w-5 h-5 text-primary" />} tone="tomorrow">
         {renderTasks(result.tomorrow, "tomorrow")}
       </PlanSection>
 
       <Separator className="bg-border/80" />
-      <PlanSection title="Set Aside" description="Not scheduled today — revisit when your energy is higher" icon={<Ban className="w-5 h-5 text-muted-foreground" />}>
+      <PlanSection title="Set Aside" description="Not scheduled today — revisit when your energy is higher" icon={<Ban className="w-5 h-5 text-muted-foreground" />} tone="aside">
         {renderTasks(result.avoid, "set-aside")}
       </PlanSection>
     </section>
   );
 }
 
-function PlanSection({ title, description, icon, children }: { title: string; description: string; icon: ReactNode; children: ReactNode }) {
+type SectionTone = "now" | SchedulePreference | "tomorrow" | "aside";
+
+const toneStyles: Record<SectionTone, string> = {
+  now: "border-emerald-200/80 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/20",
+  morning: "border-amber-200/80 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20",
+  afternoon: "border-sky-200/80 bg-sky-50/70 dark:border-sky-900/60 dark:bg-sky-950/20",
+  evening: "border-indigo-200/80 bg-indigo-50/70 dark:border-indigo-900/60 dark:bg-indigo-950/20",
+  tomorrow: "border-violet-200/80 bg-violet-50/70 dark:border-violet-900/60 dark:bg-violet-950/20",
+  aside: "border-slate-200/80 bg-slate-50/70 dark:border-slate-800 dark:bg-slate-900/30",
+};
+
+function PlanSection({ title, description, icon, tone, children }: {
+  title: string;
+  description: string;
+  icon: ReactNode;
+  tone: SectionTone;
+  children: ReactNode;
+}) {
   return (
-    <section className="space-y-3" aria-label={title}>
+    <section className={`space-y-3 rounded-2xl border p-4 ${toneStyles[tone]}`} aria-label={title}>
       <div className="flex items-start gap-2">
         <span className="mt-0.5 shrink-0">{icon}</span>
         <div>

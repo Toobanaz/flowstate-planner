@@ -155,6 +155,7 @@ describe("api", () => {
       body: {
         energy_level: 4,
         moods: ["Focused"],
+        notes: "",
         local_context: localTime,
         tasks: [
           {
