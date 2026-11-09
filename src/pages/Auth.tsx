@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Leaf, Loader2, Mail } from "lucide-react";
+import { Leaf, Loader2, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
@@ -15,12 +15,12 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { session } = useAuth();
+  const { session, isGuest, continueAsGuest } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (session) navigate("/", { replace: true });
-  }, [session, navigate]);
+    if (session || isGuest) navigate("/", { replace: true });
+  }, [session, isGuest, navigate]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +64,11 @@ export default function Auth() {
     } finally {
       setGoogleLoading(false);
     }
+  };
+
+  const handleGuest = () => {
+    if (continueAsGuest()) navigate("/", { replace: true });
+    else toast.error("Guest mode needs browser storage. Enable site storage and try again.");
   };
 
   const handleForgotPassword = async () => {
@@ -191,6 +196,14 @@ export default function Auth() {
             )}
             Continue with Google
           </Button>
+
+          <Button variant="secondary" className="w-full gap-2" onClick={handleGuest}>
+            <UserRound className="w-4 h-4" />
+            Continue as Guest
+          </Button>
+          <p className="-mt-3 text-center text-xs text-muted-foreground">
+            Guest tasks stay only in this browser and do not sync between devices.
+          </p>
 
           <p className="text-center text-sm text-muted-foreground">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}

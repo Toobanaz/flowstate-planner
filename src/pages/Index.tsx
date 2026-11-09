@@ -26,9 +26,17 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { generateLocalInsights, isCarriedOver } from "@/lib/history";
 import { removeFlowTask } from "@/lib/flowCustomization";
+import {
+  createGuestTask,
+  deleteGuestTask,
+  loadGuestLogs,
+  loadGuestTasks,
+  saveGuestDailyLog,
+  updateGuestTask,
+} from "@/lib/guestStorage";
 
 export default function Index() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, isGuest, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [userState, setUserState] = useState<UserState>({ energyLevel: 3, moods: [], notes: "" });
@@ -40,12 +48,17 @@ export default function Index() {
   const [tasksLoading, setTasksLoading] = useState(true);
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !isGuest) {
       navigate("/auth", { replace: true });
     }
-  }, [authLoading, user, navigate]);
+  }, [authLoading, user, isGuest, navigate]);
 
   useEffect(() => {
+    if (isGuest) {
+      setTasks(loadGuestTasks());
+      setTasksLoading(false);
+      return;
+    }
     if (!user) return;
     fetchTasks()
       .then(setTasks)
@@ -54,11 +67,17 @@ export default function Index() {
         toast.error("Failed to load tasks");
       })
       .finally(() => setTasksLoading(false));
-  }, [user]);
+  }, [user, isGuest]);
 
   const addTask = useCallback(async (title: string, deadlineDate: string | null, deadlineTime: string | null) => {
     setIsClassifying(true);
     try {
+      if (isGuest) {
+        const newTask = createGuestTask(title, deadlineDate, deadlineTime);
+        setTasks((prev) => [newTask, ...prev]);
+        setFlowResult(null);
+        return;
+      }
       const newTask = await createTask(title, deadlineDate, deadlineTime);
       setTasks((prev) => [newTask, ...prev]);
       setFlowResult(null);
@@ -95,18 +114,19 @@ export default function Index() {
     } finally {
       setIsClassifying(false);
     }
-  }, []);
+  }, [isGuest]);
 
   const removeTask = useCallback(async (id: string) => {
     setTasks((prev) => prev.filter((task) => task.id !== id));
     setFlowResult((prev) => prev ? removeFlowTask(prev, id) : null);
     try {
-      await deleteTask(id);
+      if (isGuest) deleteGuestTask(id);
+      else await deleteTask(id);
     } catch (e) {
       console.error("Failed to delete task:", e);
       toast.error("Failed to delete task");
     }
-  }, []);
+  }, [isGuest]);
 
   const handleToggleComplete = useCallback(async (id: string, completed: boolean) => {
     setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, completed } : task)));
@@ -115,12 +135,13 @@ export default function Index() {
       return removeFlowTask(prev, id);
     });
     try {
-      await toggleTaskComplete(id, completed);
+      if (isGuest) updateGuestTask(id, { completed });
+      else await toggleTaskComplete(id, completed);
     } catch (e) {
       console.error("Failed to toggle task:", e);
       toast.error("Failed to update task");
     }
-  }, []);
+  }, [isGuest]);
 
   const handlePlanFlow = useCallback(async () => {
     setLoading(true);
@@ -129,6 +150,19 @@ export default function Index() {
     const activeTasks = tasks.filter((task) => !task.completed);
     const localTime = getLocalTimeContext();
     const fallbackResult = planFlow(tasks, userState, localTime);
+
+    if (isGuest) {
+      if (userState.moods.length > 0) {
+        try {
+          saveGuestDailyLog(userState.energyLevel, userState.moods, userState.notes);
+        } catch (e) {
+          console.error("Failed to save guest check-in:", e);
+        }
+      }
+      setFlowResult(fallbackResult);
+      setLoading(false);
+      return;
+    }
 
     if (userState.moods.length > 0) {
       try {
@@ -161,12 +195,17 @@ export default function Index() {
     } finally {
       setLoading(false);
     }
-  }, [tasks, userState]);
+  }, [tasks, userState, isGuest]);
 
   const handleGetInsights = useCallback(async () => {
     setInsightsLoading(true);
     const localTime = getLocalTimeContext();
     const localDate = localTime.localDate;
+    if (isGuest) {
+      setInsights(generateLocalInsights(tasks, loadGuestLogs(), localDate));
+      setInsightsLoading(false);
+      return;
+    }
     try {
       const logs = await fetchRecentDailyLogs();
       const savedHistoryInsights = generateLocalInsights(tasks, logs, localDate);
@@ -186,7 +225,7 @@ export default function Index() {
     } finally {
       setInsightsLoading(false);
     }
-  }, [tasks, userState.moods]);
+  }, [tasks, userState.moods, isGuest]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -204,7 +243,7 @@ export default function Index() {
     );
   }
 
-  if (!user) return null;
+  if (!user && !isGuest) return null;
 
   const activeTasks = tasks.filter((task) => !task.completed);
   const completedTasks = tasks.filter((task) => task.completed);
@@ -217,7 +256,7 @@ export default function Index() {
       <header className="pt-10 pb-6 text-center relative">
         <div className="absolute right-4 top-4 flex items-center gap-3">
           <span className="text-xs text-muted-foreground hidden sm:inline">
-            {user.email}
+            {isGuest ? "Guest · saved on this device" : user?.email}
           </span>
           <Button
             variant="ghost"
@@ -245,6 +284,11 @@ export default function Index() {
 
         <section className="space-y-4 animate-fade-up-delay-1">
           <h2 className="text-lg font-semibold text-foreground">Your Tasks</h2>
+          {isGuest && (
+            <p className="rounded-xl bg-accent/50 px-3 py-2 text-xs text-muted-foreground">
+              Guest mode: your tasks and history stay in this browser. Sign in to sync across devices.
+            </p>
+          )}
           <TaskInput onAdd={addTask} isClassifying={isClassifying} />
 
           <div className="space-y-2 pt-1">
@@ -272,7 +316,9 @@ export default function Index() {
           ) : activeTasks.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-sm text-muted-foreground">Add a few tasks to start planning your flow 🌱</p>
-              <p className="text-xs text-muted-foreground mt-1">AI will automatically classify them ✨</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {isGuest ? "Tasks are organized locally on this device." : "AI will automatically classify them ✨"}
+              </p>
             </div>
           ) : !flowResult && !loading ? (
             <div className="space-y-5">
