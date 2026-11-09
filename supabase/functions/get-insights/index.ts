@@ -221,7 +221,7 @@ function safeTimeZone(value: unknown): string {
 }
 
 function obviousTaskCorrection(title: string) {
-  if (/\b(?:send|write)?\s*(?:a\s+)?thank[ -]?you\s+(?:note|message|email|card)\b/i.test(title)) {
+  if (/\b(?:send|write)?\s*(?:a\s+)?thank(?:[\s\p{Pd}-]*)you\s+(?:note|message|email|card)\b/iu.test(title)) {
     return { category: "Social", energy_required: 2, effort_level: "Low" };
   }
   return null;

@@ -9,6 +9,9 @@ import {
   Task,
   TaskTag,
   UserState,
+  getTaskEffort,
+  getTaskEnergy,
+  getTaskTag,
   getLocalTimeContext,
 } from "./flowEngine";
 import type { DailyLog } from "./history";
@@ -144,9 +147,9 @@ export async function planFlowAI(state: UserState, tasks: Task[], localTime = ge
       tasks: tasks.map((task) => ({
         id: task.id,
         title: task.title,
-        category: task.tag,
-        energy_required: task.energy_required,
-        effort_level: task.effort_level,
+        category: getTaskTag(task),
+        energy_required: getTaskEnergy(task),
+        effort_level: getTaskEffort(task),
         deadline_date: task.deadline_date,
         deadline_time: task.deadline_time,
       })),

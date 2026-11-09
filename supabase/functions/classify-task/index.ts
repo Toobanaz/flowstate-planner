@@ -77,7 +77,7 @@ Return ONLY valid JSON:
 });
 
 function normalizeClassification(input: JsonObject, taskTitle: string) {
-  if (/\b(?:send|write)?\s*(?:a\s+)?thank[ -]?you\s+(?:note|message|email|card)\b/i.test(taskTitle)) {
+  if (/\b(?:send|write)?\s*(?:a\s+)?thank(?:[\s\p{Pd}-]*)you\s+(?:note|message|email|card)\b/iu.test(taskTitle)) {
     return { category: "Social", energy_required: 2, effort_level: "Low" };
   }
   const category = input.category;

@@ -1,3 +1,5 @@
+import { getObviousTaskClassification } from "./taskClassification";
+
 export type TaskTag = "Deep Work" | "Creative" | "Admin" | "Social" | "Errands";
 export type Mood = "Focused" | "Overwhelmed" | "Calm" | "Anxious" | "Motivated";
 export type SchedulePreference = "morning" | "afternoon" | "evening";
@@ -92,9 +94,19 @@ const taskEnergyMap: Record<TaskTag, number> = {
 };
 
 export function getTaskEnergy(task: Task): number {
+  const corrected = getObviousTaskClassification(task.title);
+  if (corrected) return corrected.energy_required;
   if (task.energy_required) return task.energy_required;
   if (task.tag) return taskEnergyMap[task.tag] ?? 3;
   return 3;
+}
+
+export function getTaskTag(task: Task): TaskTag | null {
+  return getObviousTaskClassification(task.title)?.category ?? task.tag;
+}
+
+export function getTaskEffort(task: Task): EffortLevel | null {
+  return getObviousTaskClassification(task.title)?.effort_level ?? task.effort_level;
 }
 
 export function isOverrideActive(task: Task, localDate: string): boolean {
@@ -167,7 +179,7 @@ const creativeRank: Record<string, number> = { Creative: 0, Social: 1, Errands: 
 function sortByPriority(list: PlannedTask[], priority: MoodPriority) {
   if (priority === "deep-first") list.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a));
   else if (priority === "creative-first")
-    list.sort((a, b) => (creativeRank[a.tag ?? ""] ?? 9) - (creativeRank[b.tag ?? ""] ?? 9) || getTaskEnergy(a) - getTaskEnergy(b));
+    list.sort((a, b) => (creativeRank[getTaskTag(a) ?? ""] ?? 9) - (creativeRank[getTaskTag(b) ?? ""] ?? 9) || getTaskEnergy(a) - getTaskEnergy(b));
   else list.sort((a, b) => getTaskEnergy(a) - getTaskEnergy(b));
 }
 

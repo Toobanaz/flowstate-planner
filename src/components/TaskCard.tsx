@@ -1,4 +1,4 @@
-import { Task, getTaskEnergy } from "@/lib/flowEngine";
+import { Task, getTaskEffort, getTaskEnergy, getTaskTag } from "@/lib/flowEngine";
 import { X, Brain, Palette, FileText, Users, ShoppingBag, Sparkles, Check, ArrowUp, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -37,6 +37,8 @@ export function TaskCard({
   reason,
   isOverridden = false,
 }: TaskCardProps) {
+  const tag = getTaskTag(task);
+  const effort = getTaskEffort(task);
   return (
     <div className={`flow-card !p-4 relative space-y-3 group transition-all ${task.completed ? "opacity-60" : ""}`}>
       <div className={`flex items-start gap-3 min-w-0 ${onRemove ? "pr-8" : ""}`}>
@@ -56,7 +58,7 @@ export function TaskCard({
           </Button>
         )}
         <span className="text-muted-foreground shrink-0 mt-1">
-          {task.tag ? tagIcons[task.tag] : <FileText className="w-3.5 h-3.5" />}
+          {tag ? tagIcons[tag] : <FileText className="w-3.5 h-3.5" />}
         </span>
         <span className={`min-w-0 flex-1 text-sm leading-relaxed font-medium whitespace-pre-wrap [overflow-wrap:anywhere] ${task.completed ? "line-through" : ""}`}>
           {task.title}
@@ -69,11 +71,11 @@ export function TaskCard({
             AI Enhanced
           </span>
         )}
-        {task.tag && (
-          <span className={`tag-badge ${tagStyles[task.tag]}`}>{task.tag}</span>
+        {tag && (
+          <span className={`tag-badge ${tagStyles[tag]}`}>{tag}</span>
         )}
-        {task.effort_level && (
-          <span className="text-xs text-muted-foreground">{task.effort_level} effort</span>
+        {effort && (
+          <span className="text-xs text-muted-foreground">{effort} effort</span>
         )}
         <span className="text-xs text-muted-foreground">Energy {getTaskEnergy(task)}/5</span>
         {(task.deadline_date || task.deadline_time) && (

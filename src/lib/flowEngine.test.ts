@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planFlow, Task, UserState, getLocalTimeContext } from "./flowEngine";
+import { planFlow, Task, UserState, getLocalTimeContext, getTaskEffort, getTaskTag } from "./flowEngine";
 
 const baseTask: Task = {
   id: "task-1",
@@ -137,6 +137,21 @@ describe("planFlow", () => {
     expect(result.timeline.afternoon.map((task) => task.id)).toEqual(["admin-one"]);
     expect(result.timeline.evening.map((task) => task.id)).toEqual(["admin-two"]);
     expect(result.doLater.map((task) => task.id)).toEqual(["admin-one", "admin-two"]);
+  });
+
+  it("uses the corrected energy for a stale thank-you task in any plan", () => {
+    const stale = {
+      ...baseTask,
+      title: "send a thank‑you note to a client",
+      tag: "Deep Work" as const,
+      energy_required: 4,
+      effort_level: "High" as const,
+    };
+    const result = planFlow([stale], { ...calmState, energyLevel: 2 }, morning);
+    expect(getTaskTag(stale)).toBe("Social");
+    expect(getTaskEffort(stale)).toBe("Low");
+    expect(result.doNow[0]).toMatchObject({ id: stale.id });
+    expect(result.doNow[0].reason).toContain("Needs 2/5 energy");
   });
 
   it("returns a value-based reason for every placement bucket", () => {
