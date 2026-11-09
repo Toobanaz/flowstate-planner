@@ -117,13 +117,16 @@ serve(async (req) => {
       })),
       completed_tasks: tasks
         .filter((task) => task.completed)
-        .map((task) => ({
-          title: task.title,
-          category: task.tag,
-          energy_required: task.energy_required,
-          effort_level: task.effort_level,
-          task_created_local_timestamp: formatLocalTimestamp(task.created_at, timeZone),
-        })),
+        .map((task) => {
+          const correction = obviousTaskCorrection(task.title);
+          return {
+            title: task.title,
+            category: correction?.category ?? task.tag,
+            energy_required: correction?.energy_required ?? task.energy_required,
+            effort_level: correction?.effort_level ?? task.effort_level,
+            task_created_local_timestamp: formatLocalTimestamp(task.created_at, timeZone),
+          };
+        }),
       moods: logs.map((log) => ({
         moods: logMoods(log),
         local_timestamp: formatLocalTimestamp(log.created_at, timeZone),
@@ -215,6 +218,13 @@ function safeTimeZone(value: unknown): string {
   } catch {
     return "UTC";
   }
+}
+
+function obviousTaskCorrection(title: string) {
+  if (/\b(?:send|write)?\s*(?:a\s+)?thank[ -]?you\s+(?:note|message|email|card)\b/i.test(title)) {
+    return { category: "Social", energy_required: 2, effort_level: "Low" };
+  }
+  return null;
 }
 
 function formatLocalTimestamp(timestamp: string, timeZone: string): string {

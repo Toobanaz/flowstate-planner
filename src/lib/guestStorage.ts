@@ -1,5 +1,6 @@
 import { DailyLog } from "./history";
 import { EffortLevel, Task, TaskTag } from "./flowEngine";
+import { getObviousTaskClassification } from "./taskClassification";
 
 const TASKS_KEY = "flowstate.guest.tasks.v1";
 const LOGS_KEY = "flowstate.guest.logs.v1";
@@ -58,6 +59,8 @@ export function classifyGuestTask(title: string): {
   energy_required: number;
   effort_level: EffortLevel;
 } {
+  const obvious = getObviousTaskClassification(title);
+  if (obvious) return obvious;
   const text = title.toLowerCase();
   if (/email|reply|invoice|form|schedule|book|organize|admin/.test(text)) {
     return { category: "Admin", energy_required: 2, effort_level: "Low" };

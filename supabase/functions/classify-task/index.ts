@@ -27,6 +27,11 @@ serve(async (req) => {
 
 Task: "${task.trim()}"
 
+Classification guidance:
+- Short interpersonal correspondence, including thank-you notes/messages/cards, is Social,
+  usually energy 1-2 and Low effort. It is not Deep Work merely because writing is involved.
+- Deep Work requires sustained concentration, such as strategy, research, analysis, or complex drafting.
+
 Return:
 - category (Deep Work, Creative, Admin, Social, Errands)
 - energy_required (1-5)
@@ -62,7 +67,7 @@ Return ONLY valid JSON:
 
     const data = await response.json();
     const parsed = parseJsonContent(data.choices?.[0]?.message?.content);
-    const result = normalizeClassification(parsed);
+    const result = normalizeClassification(parsed, task.trim());
 
     return jsonResponse(result);
   } catch (e) {
@@ -71,7 +76,10 @@ Return ONLY valid JSON:
   }
 });
 
-function normalizeClassification(input: JsonObject) {
+function normalizeClassification(input: JsonObject, taskTitle: string) {
+  if (/\b(?:send|write)?\s*(?:a\s+)?thank[ -]?you\s+(?:note|message|email|card)\b/i.test(taskTitle)) {
+    return { category: "Social", energy_required: 2, effort_level: "Low" };
+  }
   const category = input.category;
   const effortLevel = input.effort_level;
   const energy = Number(input.energy_required);

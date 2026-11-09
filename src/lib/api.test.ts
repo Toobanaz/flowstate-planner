@@ -76,6 +76,30 @@ describe("api", () => {
     });
   });
 
+  it("corrects a previously stored thank-you note classification when loading tasks", async () => {
+    mocks.order.mockResolvedValueOnce({
+      data: [{
+        id: "task-thanks",
+        title: "send a thank-you note to a client",
+        tag: "Deep Work",
+        energy_required: 4,
+        effort_level: "High",
+        schedule_preference: null,
+        ai_classified: true,
+        completed: false,
+        created_at: "2026-11-09T08:00:00.000Z",
+        override_bucket: null,
+        override_date: null,
+        deadline_date: null,
+        deadline_time: null,
+      }],
+      error: null,
+    });
+
+    const [task] = await fetchTasks();
+    expect(task).toMatchObject({ tag: "Social", energy_required: 2, effort_level: "Low" });
+  });
+
   it("persists classification category, energy, effort, and ai flag", async () => {
     await updateTaskClassification("task-1", "Admin", 2, "Low");
 
@@ -98,6 +122,19 @@ describe("api", () => {
       category: "Deep Work",
       energy_required: 5,
       effort_level: "High",
+    });
+  });
+
+  it("corrects an implausible deep-work classification for a thank-you note", async () => {
+    mocks.invoke.mockResolvedValueOnce({
+      data: { category: "Deep Work", energy_required: 4, effort_level: "High" },
+      error: null,
+    });
+
+    await expect(classifyTaskAI("send a thank-you note to a client")).resolves.toEqual({
+      category: "Social",
+      energy_required: 2,
+      effort_level: "Low",
     });
   });
 

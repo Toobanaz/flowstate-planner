@@ -81,6 +81,9 @@ Suggest:
 2. One thing they should avoid right now
 
 Also, based on this user's energy and tasks, suggest when to do each task.
+Do not bunch every feasible task into the current period. Keep the immediate queue focused,
+place the most demanding suitable work earlier when energy is high, and distribute lighter
+admin or errand tasks across later available periods unless a deadline requires otherwise.
 
 Assign each task to:
 - Morning

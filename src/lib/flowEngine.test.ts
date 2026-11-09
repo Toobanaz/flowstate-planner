@@ -125,6 +125,20 @@ describe("planFlow", () => {
     expect(result.doLater).toHaveLength(4);
   });
 
+  it("keeps a high-energy morning focused and distributes lighter work later", () => {
+    const result = planFlow([
+      { ...baseTask, id: "deep-one", energy_required: 5 },
+      { ...baseTask, id: "deep-two", energy_required: 4 },
+      { ...baseTask, id: "admin-one", tag: "Admin", energy_required: 2 },
+      { ...baseTask, id: "admin-two", tag: "Admin", energy_required: 2 },
+    ], { ...calmState, energyLevel: 4, moods: ["Motivated"] }, morning);
+
+    expect(result.doNow.map((task) => task.id)).toEqual(["deep-one", "deep-two"]);
+    expect(result.timeline.afternoon.map((task) => task.id)).toEqual(["admin-one"]);
+    expect(result.timeline.evening.map((task) => task.id)).toEqual(["admin-two"]);
+    expect(result.doLater.map((task) => task.id)).toEqual(["admin-one", "admin-two"]);
+  });
+
   it("returns a value-based reason for every placement bucket", () => {
     const result = planFlow([
       { ...baseTask, id: "now", energy_required: 2, schedule_preference: "morning" },

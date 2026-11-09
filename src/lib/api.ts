@@ -12,6 +12,7 @@ import {
   getLocalTimeContext,
 } from "./flowEngine";
 import type { DailyLog } from "./history";
+import { getObviousTaskClassification } from "./taskClassification";
 
 export interface TaskClassification {
   category: TaskTag;
@@ -129,7 +130,7 @@ export async function classifyTaskAI(taskText: string): Promise<TaskClassificati
   });
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
-  return normalizeClassification(data);
+  return getObviousTaskClassification(taskText) ?? normalizeClassification(data);
 }
 
 // AI plan suggestions + scheduling
@@ -170,12 +171,13 @@ export async function getInsightsAI(
 }
 
 function mapDbTask(row: TaskRow): Task {
+  const corrected = getObviousTaskClassification(row.title);
   return {
     id: row.id,
     title: row.title,
-    tag: row.tag as TaskTag | null,
-    energy_required: row.energy_required ?? 3,
-    effort_level: (row.effort_level as EffortLevel | null) ?? null,
+    tag: corrected?.category ?? (row.tag as TaskTag | null),
+    energy_required: corrected?.energy_required ?? row.energy_required ?? 3,
+    effort_level: corrected?.effort_level ?? (row.effort_level as EffortLevel | null) ?? null,
     schedule_preference: row.schedule_preference as SchedulePreference | null,
     ai_classified: row.ai_classified ?? false,
     completed: row.completed ?? false,
