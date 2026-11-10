@@ -31,6 +31,7 @@ FlowState also suggests a **timeline for your day**, matching high-energy work t
 - **AI task understanding** — tasks you type are automatically classified with a tag and energy level; original task names are always kept exactly as you wrote them.
 - **✨ Insights** — a weekly look at your check-ins and tasks that returns a few short, encouraging, practical observations about your patterns.
 - **Task completion tracking** — check off tasks and the plan instantly replans around what's left.
+- **Real-pace timers** — start or pause a timer on any task; completed timing history teaches FlowState how long your work actually takes and improves future ordering, estimates, and insights.
 - **Scheduling preferences** — optionally tell the app when you'd like to do a task (Morning / Afternoon / Evening).
 
 ## Accounts & sync

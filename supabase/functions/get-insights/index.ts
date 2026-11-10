@@ -24,6 +24,7 @@ type TaskRow = DataRow & {
   energy_required?: number | null;
   effort_level?: string | null;
   completed?: boolean | null;
+  actual_seconds?: number | null;
 };
 
 // Old records only have `mood`; new ones have `moods` (up to 2).
@@ -124,6 +125,7 @@ serve(async (req) => {
             category: correction?.category ?? task.tag,
             energy_required: correction?.energy_required ?? task.energy_required,
             effort_level: correction?.effort_level ?? task.effort_level,
+            actual_minutes: task.actual_seconds ? Math.round(task.actual_seconds / 60) : null,
             task_created_local_timestamp: formatLocalTimestamp(task.created_at, timeZone),
           };
         }),
@@ -141,12 +143,13 @@ ${JSON.stringify(weeklyData)}
 
 Give 2 short insights:
 - One about energy patterns
-- One actionable suggestion
+- One actionable suggestion, using actual timed task duration when available
 
 All timestamps above have already been converted to the user's local time zone (${timeZone}).
 Never convert them again or mention UTC. Only claim a peak energy time when at least two
 check-ins on different local dates support a similar time window. Otherwise describe the
 energy pattern without inventing a time. Task timestamps are creation times, not completion times.
+When actual_minutes is present, treat it as the user's real pace and prefer it over generic duration assumptions.
 
 Keep it concise and encouraging.
 

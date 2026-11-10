@@ -20,6 +20,8 @@ export interface Task {
   override_date: string | null;
   deadline_date: string | null;
   deadline_time: string | null;
+  actual_seconds?: number;
+  timer_started_at?: string | null;
 }
 
 export interface PlannedTask extends Task {
@@ -39,6 +41,7 @@ export interface FlowResult {
   avoid: PlannedTask[];
   tomorrow: PlannedTask[];
   localTime: LocalTimeContext;
+  paceProfile?: PaceProfile;
   aiSuggestion?: AISuggestion;
   timeline: {
     morning: PlannedTask[];
@@ -46,6 +49,13 @@ export interface FlowResult {
     evening: PlannedTask[];
   };
 }
+
+export interface PaceStat {
+  averageSeconds: number;
+  samples: number;
+}
+
+export type PaceProfile = Partial<Record<TaskTag, PaceStat>>;
 
 export interface AISuggestion {
   try_first: string;
@@ -107,6 +117,36 @@ export function getTaskTag(task: Task): TaskTag | null {
 
 export function getTaskEffort(task: Task): EffortLevel | null {
   return getObviousTaskClassification(task.title)?.effort_level ?? task.effort_level;
+}
+
+export function getTrackedSeconds(task: Task, now = Date.now()): number {
+  const accumulated = task.actual_seconds ?? 0;
+  if (!task.timer_started_at) return accumulated;
+  const startedAt = new Date(task.timer_started_at).getTime();
+  if (!Number.isFinite(startedAt)) return accumulated;
+  const runningSeconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+  return accumulated + runningSeconds;
+}
+
+export function buildPaceProfile(tasks: Task[]): PaceProfile {
+  const totals = new Map<TaskTag, { seconds: number; samples: number }>();
+  tasks.filter((task) => task.completed && (task.actual_seconds ?? 0) > 0).forEach((task) => {
+    const tag = getTaskTag(task);
+    if (!tag) return;
+    const current = totals.get(tag) ?? { seconds: 0, samples: 0 };
+    current.seconds += task.actual_seconds ?? 0;
+    current.samples += 1;
+    totals.set(tag, current);
+  });
+  return Object.fromEntries([...totals].map(([tag, value]) => [tag, {
+    averageSeconds: Math.round(value.seconds / value.samples),
+    samples: value.samples,
+  }])) as PaceProfile;
+}
+
+export function estimateTaskSeconds(task: Task, profile: PaceProfile): number | null {
+  const tag = getTaskTag(task);
+  return tag ? profile[tag]?.averageSeconds ?? null : null;
 }
 
 export function isOverrideActive(task: Task, localDate: string): boolean {
@@ -176,14 +216,16 @@ export function getNoteDoNowLimit(notes: string): number | null {
 
 const creativeRank: Record<string, number> = { Creative: 0, Social: 1, Errands: 2 };
 
-function sortByPriority(list: PlannedTask[], priority: MoodPriority) {
-  if (priority === "deep-first") list.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a));
+function sortByPriority(list: PlannedTask[], priority: MoodPriority, paceProfile: PaceProfile) {
+  const pace = (a: Task, b: Task) => (estimateTaskSeconds(a, paceProfile) ?? Infinity) - (estimateTaskSeconds(b, paceProfile) ?? Infinity);
+  if (priority === "deep-first") list.sort((a, b) => getTaskEnergy(b) - getTaskEnergy(a) || pace(a, b));
   else if (priority === "creative-first")
-    list.sort((a, b) => (creativeRank[getTaskTag(a) ?? ""] ?? 9) - (creativeRank[getTaskTag(b) ?? ""] ?? 9) || getTaskEnergy(a) - getTaskEnergy(b));
-  else list.sort((a, b) => getTaskEnergy(a) - getTaskEnergy(b));
+    list.sort((a, b) => (creativeRank[getTaskTag(a) ?? ""] ?? 9) - (creativeRank[getTaskTag(b) ?? ""] ?? 9) || getTaskEnergy(a) - getTaskEnergy(b) || pace(a, b));
+  else list.sort((a, b) => getTaskEnergy(a) - getTaskEnergy(b) || pace(a, b));
 }
 
 export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTimeContext()): FlowResult {
+  const paceProfile = buildPaceProfile(tasks);
   const profile = getMoodProfile(state.moods);
   const effectiveEnergy = Math.min(5, Math.max(1, state.energyLevel + profile.energyModifier));
   const statedEnergy = state.energyLevel;
@@ -279,7 +321,7 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
   const priority = useMorningEnergyOrder
     ? "deep-first"
     : profile.priority;
-  sortByPriority(doNow, priority);
+  sortByPriority(doNow, priority, paceProfile);
   prioritizeDeadlines(doNow, localTime.localDate);
   const noteLimit = getNoteDoNowLimit(state.notes);
   const doNowLimit = smallestLimit(2, profile.doNowLimit, noteLimit);
@@ -294,7 +336,7 @@ export function planFlow(tasks: Task[], state: UserState, localTime = getLocalTi
     doLater.push(...overflow);
   }
 
-  return { doNow, doLater, avoid, tomorrow, localTime, timeline };
+  return { doNow, doLater, avoid, tomorrow, localTime, paceProfile, timeline };
 }
 
 function smallestLimit(...limits: Array<number | null>): number | null {

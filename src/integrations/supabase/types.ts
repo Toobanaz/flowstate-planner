@@ -46,6 +46,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          actual_seconds: number
           ai_classified: boolean | null
           completed: boolean | null
           created_at: string
@@ -59,9 +60,11 @@ export type Database = {
           schedule_preference: string | null
           tag: string | null
           title: string
+          timer_started_at: string | null
           user_id: string | null
         }
         Insert: {
+          actual_seconds?: number
           ai_classified?: boolean | null
           completed?: boolean | null
           created_at?: string
@@ -75,9 +78,11 @@ export type Database = {
           schedule_preference?: string | null
           tag?: string | null
           title: string
+          timer_started_at?: string | null
           user_id?: string | null
         }
         Update: {
+          actual_seconds?: number
           ai_classified?: boolean | null
           completed?: boolean | null
           created_at?: string
@@ -91,6 +96,7 @@ export type Database = {
           schedule_preference?: string | null
           tag?: string | null
           title?: string
+          timer_started_at?: string | null
           user_id?: string | null
         }
         Relationships: []

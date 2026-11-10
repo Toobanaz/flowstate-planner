@@ -5,6 +5,7 @@ import {
   EffortLevel,
   Insight,
   OverrideBucket,
+  PaceProfile,
   SchedulePreference,
   Task,
   TaskTag,
@@ -89,6 +90,14 @@ export async function toggleTaskComplete(id: string, completed: boolean): Promis
   if (error) throw error;
 }
 
+export async function updateTaskTimer(id: string, actualSeconds: number, timerStartedAt: string | null): Promise<void> {
+  const { error } = await supabase
+    .from("tasks")
+    .update({ actual_seconds: actualSeconds, timer_started_at: timerStartedAt })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateTaskOverride(
   id: string,
   overrideBucket: OverrideBucket,
@@ -137,12 +146,18 @@ export async function classifyTaskAI(taskText: string): Promise<TaskClassificati
 }
 
 // AI plan suggestions + scheduling
-export async function planFlowAI(state: UserState, tasks: Task[], localTime = getLocalTimeContext()): Promise<AIPlanResponse> {
+export async function planFlowAI(
+  state: UserState,
+  tasks: Task[],
+  localTime = getLocalTimeContext(),
+  paceProfile: PaceProfile = {}
+): Promise<AIPlanResponse> {
   const { data, error } = await supabase.functions.invoke("plan-flow-ai", {
     body: {
       energy_level: state.energyLevel,
       moods: state.moods,
       notes: state.notes,
+      pace_profile: paceProfile,
       local_context: localTime,
       tasks: tasks.map((task) => ({
         id: task.id,
@@ -189,6 +204,8 @@ function mapDbTask(row: TaskRow): Task {
     override_date: row.override_date ?? null,
     deadline_date: row.deadline_date ?? null,
     deadline_time: row.deadline_time ?? null,
+    actual_seconds: row.actual_seconds ?? 0,
+    timer_started_at: row.timer_started_at ?? null,
   };
 }
 

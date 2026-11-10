@@ -6,7 +6,11 @@ const TASKS_KEY = "flowstate.guest.tasks.v1";
 const LOGS_KEY = "flowstate.guest.logs.v1";
 
 export function loadGuestTasks(): Task[] {
-  return readArray<Task>(TASKS_KEY);
+  return readArray<Task>(TASKS_KEY).map((task) => ({
+    ...task,
+    actual_seconds: task.actual_seconds ?? 0,
+    timer_started_at: task.timer_started_at ?? null,
+  }));
 }
 
 export function createGuestTask(title: string, deadlineDate: string | null, deadlineTime: string | null): Task {
@@ -25,6 +29,8 @@ export function createGuestTask(title: string, deadlineDate: string | null, dead
     override_date: null,
     deadline_date: deadlineDate,
     deadline_time: deadlineTime,
+    actual_seconds: 0,
+    timer_started_at: null,
   };
   writeArray(TASKS_KEY, [task, ...loadGuestTasks()]);
   return task;

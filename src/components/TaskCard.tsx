@@ -1,5 +1,6 @@
-import { Task, getTaskEffort, getTaskEnergy, getTaskTag } from "@/lib/flowEngine";
-import { X, Brain, Palette, FileText, Users, ShoppingBag, Sparkles, Check, ArrowUp, CalendarClock } from "lucide-react";
+import { useEffect, useState } from "react";
+import { PaceProfile, Task, estimateTaskSeconds, getTaskEffort, getTaskEnergy, getTaskTag, getTrackedSeconds } from "@/lib/flowEngine";
+import { X, Brain, Palette, FileText, Users, ShoppingBag, Sparkles, Check, ArrowUp, CalendarClock, Pause, Play, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const tagStyles: Record<string, string> = {
@@ -26,6 +27,8 @@ interface TaskCardProps {
   showSchedule?: boolean;
   reason?: string;
   isOverridden?: boolean;
+  paceProfile?: PaceProfile;
+  onToggleTimer?: (id: string) => void;
 }
 
 export function TaskCard({
@@ -36,9 +39,20 @@ export function TaskCard({
   showSchedule = true,
   reason,
   isOverridden = false,
+  paceProfile = {},
+  onToggleTimer,
 }: TaskCardProps) {
+  const [, setTick] = useState(0);
   const tag = getTaskTag(task);
   const effort = getTaskEffort(task);
+  const trackedSeconds = getTrackedSeconds(task);
+  const paceSeconds = estimateTaskSeconds(task, paceProfile);
+
+  useEffect(() => {
+    if (!task.timer_started_at) return;
+    const interval = window.setInterval(() => setTick((value) => value + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, [task.timer_started_at]);
   return (
     <div className={`flow-card !p-4 relative space-y-3 group transition-all ${task.completed ? "opacity-60" : ""}`}>
       <div className={`flex items-start gap-3 min-w-0 ${onRemove ? "pr-8" : ""}`}>
@@ -78,6 +92,15 @@ export function TaskCard({
           <span className="text-xs text-muted-foreground">{effort} effort</span>
         )}
         <span className="text-xs text-muted-foreground">Energy {getTaskEnergy(task)}/5</span>
+        {(trackedSeconds > 0 || task.timer_started_at) && (
+          <span className="flex items-center gap-1 text-xs font-medium text-primary">
+            <Timer className="h-3 w-3" />
+            {formatDuration(trackedSeconds)} tracked
+          </span>
+        )}
+        {paceSeconds !== null && (
+          <span className="text-xs text-muted-foreground">Usual pace ~{formatApproximateDuration(paceSeconds)}</span>
+        )}
         {(task.deadline_date || task.deadline_time) && (
           <span className="flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-400">
             <CalendarClock className="h-3 w-3" />
@@ -97,6 +120,17 @@ export function TaskCard({
             title="Remove task"
           >
             <X className="w-4 h-4" />
+          </Button>
+        )}
+        {onToggleTimer && !task.completed && (
+          <Button
+            variant={task.timer_started_at ? "secondary" : "outline"}
+            size="sm"
+            onClick={() => onToggleTimer(task.id)}
+            className="h-7 rounded-lg px-2 text-xs"
+          >
+            {task.timer_started_at ? <Pause className="mr-1 h-3 w-3" /> : <Play className="mr-1 h-3 w-3" />}
+            {task.timer_started_at ? "Pause" : trackedSeconds > 0 ? "Resume" : "Start timer"}
           </Button>
         )}
       </div>
@@ -122,6 +156,21 @@ export function TaskCard({
       )}
     </div>
   );
+}
+
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  return hours > 0
+    ? `${hours}h ${String(minutes).padStart(2, "0")}m ${String(remainder).padStart(2, "0")}s`
+    : `${minutes}m ${String(remainder).padStart(2, "0")}s`;
+}
+
+function formatApproximateDuration(seconds: number): string {
+  if (seconds < 60) return "<1 min";
+  const minutes = Math.round(seconds / 60);
+  return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} min`;
 }
 
 function formatDeadline(date: string | null, time: string | null) {

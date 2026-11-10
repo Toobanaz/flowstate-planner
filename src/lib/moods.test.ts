@@ -6,6 +6,7 @@ const base: Task = {
   id: "t", title: "T", tag: "Admin", energy_required: 2, effort_level: "Low",
   schedule_preference: "morning", ai_classified: true, completed: false,
   created_at: "2026-04-06T00:00:00.000Z", override_bucket: null, override_date: null,
+  deadline_date: null, deadline_time: null,
 };
 const morning = getLocalTimeContext(new Date(2026, 9, 10, 9, 0));
 const tasks: Task[] = [

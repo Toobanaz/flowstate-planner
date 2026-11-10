@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CheckCircle2, ChevronDown, ChevronUp, History } from "lucide-react";
-import { Task } from "@/lib/flowEngine";
+import { PaceProfile, Task } from "@/lib/flowEngine";
 import { Button } from "@/components/ui/button";
 import { TaskCard } from "./TaskCard";
 
@@ -8,9 +8,10 @@ interface TaskHistoryCardProps {
   tasks: Task[];
   onRemove: (id: string) => void;
   onToggleComplete: (id: string, completed: boolean) => void;
+  paceProfile: PaceProfile;
 }
 
-export function TaskHistoryCard({ tasks, onRemove, onToggleComplete }: TaskHistoryCardProps) {
+export function TaskHistoryCard({ tasks, onRemove, onToggleComplete, paceProfile }: TaskHistoryCardProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -32,7 +33,7 @@ export function TaskHistoryCard({ tasks, onRemove, onToggleComplete }: TaskHisto
       {open && (tasks.length > 0 ? (
         <div className="space-y-2">
           {tasks.map((task) => (
-            <TaskCard key={task.id} task={task} onRemove={onRemove} onToggleComplete={onToggleComplete} />
+            <TaskCard key={task.id} task={task} paceProfile={paceProfile} onRemove={onRemove} onToggleComplete={onToggleComplete} />
           ))}
         </div>
       ) : (

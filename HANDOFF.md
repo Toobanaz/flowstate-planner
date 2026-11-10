@@ -7,6 +7,7 @@ Running to-do list for changes that must be applied or deployed through Lovable.
 ### Database migrations
 
 All repository migrations through `20261103100000_add_moods_to_daily_logs.sql` are applied to external Supabase project `lemounryblppsiuoljjh`.
+- [ ] Apply `20261110090000_add_task_time_tracking.sql` to persist accumulated timer seconds and active timer starts.
 
 ### Edge functions
 

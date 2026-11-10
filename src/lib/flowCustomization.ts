@@ -1,4 +1,4 @@
-import { FlowResult, PlannedTask, SchedulePreference } from "./flowEngine";
+import { FlowResult, PlannedTask, SchedulePreference, Task } from "./flowEngine";
 
 export type PlanZone = "do-now" | `later-${SchedulePreference}` | "tomorrow" | "set-aside";
 
@@ -40,6 +40,22 @@ export function removeFlowTask(result: FlowResult, taskId: string): FlowResult {
       morning: result.timeline.morning.filter((task) => task.id !== taskId),
       afternoon: result.timeline.afternoon.filter((task) => task.id !== taskId),
       evening: result.timeline.evening.filter((task) => task.id !== taskId),
+    },
+  };
+}
+
+export function updateFlowTask(result: FlowResult, taskId: string, update: Partial<Task>): FlowResult {
+  const apply = (task: PlannedTask) => task.id === taskId ? { ...task, ...update } : task;
+  return {
+    ...result,
+    doNow: result.doNow.map(apply),
+    doLater: result.doLater.map(apply),
+    tomorrow: result.tomorrow.map(apply),
+    avoid: result.avoid.map(apply),
+    timeline: {
+      morning: result.timeline.morning.map(apply),
+      afternoon: result.timeline.afternoon.map(apply),
+      evening: result.timeline.evening.map(apply),
     },
   };
 }

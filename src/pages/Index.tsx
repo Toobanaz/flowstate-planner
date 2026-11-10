@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Task, UserState, FlowResult, Insight, SchedulePreference, planFlow, getLocalTimeContext } from "@/lib/flowEngine";
+import { Task, UserState, FlowResult, Insight, SchedulePreference, buildPaceProfile, getTrackedSeconds, planFlow, getLocalTimeContext } from "@/lib/flowEngine";
 import {
   fetchTasks,
   createTask,
   deleteTask,
   toggleTaskComplete,
+  updateTaskTimer,
   updateTaskClassification,
   classifyTaskAI,
   saveDailyLog,
@@ -25,7 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { generateLocalInsights, isCarriedOver } from "@/lib/history";
-import { removeFlowTask } from "@/lib/flowCustomization";
+import { removeFlowTask, updateFlowTask } from "@/lib/flowCustomization";
 import {
   createGuestTask,
   deleteGuestTask,
@@ -46,6 +47,7 @@ export default function Index() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(true);
+  const paceProfile = useMemo(() => buildPaceProfile(tasks), [tasks]);
 
   useEffect(() => {
     if (!authLoading && !user && !isGuest) {
@@ -129,19 +131,68 @@ export default function Index() {
   }, [isGuest]);
 
   const handleToggleComplete = useCallback(async (id: string, completed: boolean) => {
-    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, completed } : task)));
+    const task = tasks.find((item) => item.id === id);
+    const timerUpdate = task?.timer_started_at
+      ? { actual_seconds: getTrackedSeconds(task), timer_started_at: null }
+      : null;
+    const update = { completed, ...timerUpdate };
+    setTasks((prev) => prev.map((item) => (item.id === id ? { ...item, ...update } : item)));
     setFlowResult((prev) => {
       if (!prev || !completed) return null;
       return removeFlowTask(prev, id);
     });
     try {
-      if (isGuest) updateGuestTask(id, { completed });
-      else await toggleTaskComplete(id, completed);
+      if (isGuest) updateGuestTask(id, update);
+      else {
+        if (timerUpdate) await updateTaskTimer(id, timerUpdate.actual_seconds, null);
+        await toggleTaskComplete(id, completed);
+      }
     } catch (e) {
       console.error("Failed to toggle task:", e);
       toast.error("Failed to update task");
     }
-  }, [isGuest]);
+  }, [isGuest, tasks]);
+
+  const handleToggleTimer = useCallback(async (id: string) => {
+    const target = tasks.find((task) => task.id === id);
+    if (!target || target.completed) return;
+    const now = Date.now();
+    const nowIso = new Date(now).toISOString();
+    const starting = !target.timer_started_at;
+    const updates = new Map<string, { actual_seconds: number; timer_started_at: string | null }>();
+
+    for (const task of tasks) {
+      if (task.id === id) {
+        updates.set(task.id, starting
+          ? { actual_seconds: task.actual_seconds ?? 0, timer_started_at: nowIso }
+          : { actual_seconds: getTrackedSeconds(task, now), timer_started_at: null });
+      } else if (starting && task.timer_started_at) {
+        updates.set(task.id, { actual_seconds: getTrackedSeconds(task, now), timer_started_at: null });
+      }
+    }
+
+    setTasks((previous) => previous.map((task) => {
+      const update = updates.get(task.id);
+      return update ? { ...task, ...update } : task;
+    }));
+    setFlowResult((previous) => {
+      if (!previous) return null;
+      return [...updates].reduce((result, [taskId, update]) => updateFlowTask(result, taskId, update), previous);
+    });
+
+    try {
+      if (isGuest) {
+        updates.forEach((update, taskId) => updateGuestTask(taskId, update));
+      } else {
+        await Promise.all([...updates].map(([taskId, update]) =>
+          updateTaskTimer(taskId, update.actual_seconds, update.timer_started_at)
+        ));
+      }
+    } catch (error) {
+      console.error("Failed to update task timer:", error);
+      toast.error("Failed to save timer");
+    }
+  }, [isGuest, tasks]);
 
   const handlePlanFlow = useCallback(async () => {
     setLoading(true);
@@ -173,7 +224,7 @@ export default function Index() {
     }
 
     try {
-      const aiPlan = await planFlowAI(userState, activeTasks, localTime);
+      const aiPlan = await planFlowAI(userState, activeTasks, localTime, paceProfile);
       const updates = aiPlan.schedule
         .map((item) => {
           const matchedTask = activeTasks.find((task) => task.title === item.task);
@@ -195,7 +246,7 @@ export default function Index() {
     } finally {
       setLoading(false);
     }
-  }, [tasks, userState, isGuest]);
+  }, [tasks, userState, isGuest, paceProfile]);
 
   const handleGetInsights = useCallback(async () => {
     setInsightsLoading(true);
@@ -332,7 +383,7 @@ export default function Index() {
                   </div>
                   <p className="px-1 text-xs text-muted-foreground">Still unfinished from a previous day—kept here so nothing gets lost.</p>
                   {carriedTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
+                    <TaskCard key={task.id} task={task} paceProfile={paceProfile} onRemove={removeTask} onToggleComplete={handleToggleComplete} onToggleTimer={handleToggleTimer} />
                   ))}
                 </div>
               )}
@@ -340,7 +391,7 @@ export default function Index() {
                 <div className="space-y-2">
                   {carriedTasks.length > 0 && <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Added today</p>}
                   {newTasks.map((task) => (
-                    <TaskCard key={task.id} task={task} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
+                    <TaskCard key={task.id} task={task} paceProfile={paceProfile} onRemove={removeTask} onToggleComplete={handleToggleComplete} onToggleTimer={handleToggleTimer} />
                   ))}
                 </div>
               )}
@@ -368,6 +419,7 @@ export default function Index() {
                 onChange={setFlowResult}
                 onRemove={removeTask}
                 onToggleComplete={handleToggleComplete}
+                onToggleTimer={handleToggleTimer}
               />
             )}
           </>
@@ -380,7 +432,7 @@ export default function Index() {
         </section>
 
         <section aria-label="Task History">
-          <TaskHistoryCard tasks={completedTasks} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
+          <TaskHistoryCard tasks={completedTasks} paceProfile={paceProfile} onRemove={removeTask} onToggleComplete={handleToggleComplete} />
         </section>
       </main>
     </div>

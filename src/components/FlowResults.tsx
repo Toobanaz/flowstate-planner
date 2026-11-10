@@ -12,6 +12,7 @@ interface FlowResultsProps {
   onChange: (result: FlowResult) => void;
   onRemove?: (id: string) => void;
   onToggleComplete?: (id: string, completed: boolean) => void;
+  onToggleTimer?: (id: string) => void;
 }
 
 const periodLabels = { morning: "Morning", afternoon: "Afternoon", evening: "Evening" };
@@ -30,7 +31,7 @@ const zoneLabels: Record<PlanZone, string> = {
 };
 const allZones = Object.keys(zoneLabels) as PlanZone[];
 
-export function FlowResults({ result, onChange, onRemove, onToggleComplete }: FlowResultsProps) {
+export function FlowResults({ result, onChange, onRemove, onToggleComplete, onToggleTimer }: FlowResultsProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const laterPeriods = (["morning", "afternoon", "evening"] as SchedulePreference[]).map((period) => ({
     period,
@@ -112,6 +113,8 @@ export function FlowResults({ result, onChange, onRemove, onToggleComplete }: Fl
             isOverridden={task.isOverridden}
             onRemove={onRemove}
             onToggleComplete={onToggleComplete}
+            onToggleTimer={onToggleTimer}
+            paceProfile={result.paceProfile ?? {}}
           />
         </div>
       ))}

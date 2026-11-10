@@ -27,6 +27,7 @@ import {
   updateTaskClassification,
   updateTaskOverride,
   updateTaskSchedules,
+  updateTaskTimer,
 } from "./api";
 import { getLocalTimeContext } from "./flowEngine";
 
@@ -158,6 +159,15 @@ describe("api", () => {
     expect(mocks.eq).toHaveBeenCalledWith("id", "task-1");
   });
 
+  it("persists accumulated timer time and active start", async () => {
+    await updateTaskTimer("task-1", 125, "2026-11-10T09:00:00.000Z");
+    expect(mocks.update).toHaveBeenCalledWith({
+      actual_seconds: 125,
+      timer_started_at: "2026-11-10T09:00:00.000Z",
+    });
+    expect(mocks.eq).toHaveBeenCalledWith("id", "task-1");
+  });
+
   it("calls the AI planner with user state and task summaries", async () => {
     mocks.invoke.mockResolvedValueOnce({
       data: {
@@ -183,6 +193,8 @@ describe("api", () => {
           created_at: "2026-04-06T00:00:00.000Z",
           override_bucket: null,
           override_date: null,
+          deadline_date: null,
+          deadline_time: null,
         },
       ],
       localTime
@@ -193,6 +205,7 @@ describe("api", () => {
         energy_level: 4,
         moods: ["Focused"],
         notes: "",
+        pace_profile: {},
         local_context: localTime,
         tasks: [
           {
@@ -201,6 +214,8 @@ describe("api", () => {
             category: "Creative",
             energy_required: 4,
             effort_level: "Medium",
+            deadline_date: null,
+            deadline_time: null,
           },
         ],
       },

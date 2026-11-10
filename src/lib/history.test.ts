@@ -42,4 +42,13 @@ describe("task history", () => {
     expect(insights[0].text).toContain("2.0/5");
     expect(insights[1].text).toContain("1 unfinished task");
   });
+
+  it("uses completed timer history to report the user's real pace", () => {
+    const insights = generateLocalInsights([
+      { ...task, completed: true, actual_seconds: 1800 },
+    ], [], "2026-11-07");
+
+    expect(insights[0]).toMatchObject({ title: "Your Real Pace" });
+    expect(insights[0].text).toContain("30 minutes");
+  });
 });

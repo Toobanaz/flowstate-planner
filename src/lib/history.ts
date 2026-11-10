@@ -47,6 +47,16 @@ export function generateLocalInsights(
     });
   }
 
+  const timedTasks = tasks.filter((task) => task.completed && (task.actual_seconds ?? 0) > 0);
+  if (timedTasks.length > 0) {
+    const averageSeconds = timedTasks.reduce((sum, task) => sum + (task.actual_seconds ?? 0), 0) / timedTasks.length;
+    insights.push({
+      emoji: "⏱️",
+      title: "Your Real Pace",
+      text: `Your ${timedTasks.length} timed completed task${timedTasks.length === 1 ? "" : "s"} averaged ${formatPace(averageSeconds)}. Future plans will use this history instead of a generic estimate.`,
+    });
+  }
+
   const completed = recentTasks.filter((task) => task.completed).length;
   if (carryovers.length > 0) {
     insights.push({
@@ -63,6 +73,11 @@ export function generateLocalInsights(
   }
 
   return insights.slice(0, 2);
+}
+
+function formatPace(seconds: number): string {
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes} minutes`;
 }
 
 function mostCommonMood(logs: DailyLog[]): Mood | null {

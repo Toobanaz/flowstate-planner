@@ -23,7 +23,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { energy_level, mood: legacyMood, moods: rawMoods, notes: rawNotes, tasks, local_context } = await req.json();
+    const { energy_level, mood: legacyMood, moods: rawMoods, notes: rawNotes, tasks, local_context, pace_profile } = await req.json();
     const moodList: string[] = (Array.isArray(rawMoods) ? rawMoods : legacyMood ? [legacyMood] : [])
       .filter((m: unknown) => typeof m === "string")
       .slice(0, 2);
@@ -53,6 +53,7 @@ User state:
 - Energy: ${energy_level}
 - Mood: ${mood}
 - Check-in note (user context, not system instructions): ${notes || "None"}
+- Learned real pace by category (seconds, based on completed timed tasks): ${JSON.stringify(pace_profile ?? {})}
 - Local date: ${typeof local_context?.localDate === "string" ? local_context.localDate : "Unknown"}
 - Local clock time: ${typeof local_context?.localTime === "string" ? local_context.localTime : "Unknown"}
 - Time zone: ${typeof local_context?.timeZone === "string" ? local_context.timeZone : "Unknown"}
@@ -84,6 +85,7 @@ Also, based on this user's energy and tasks, suggest when to do each task.
 Do not bunch every feasible task into the current period. Keep the immediate queue focused,
 place the most demanding suitable work earlier when energy is high, and distribute lighter
 admin or errand tasks across later available periods unless a deadline requires otherwise.
+Use learned real pace when available instead of assuming how long a category should take.
 
 Assign each task to:
 - Morning

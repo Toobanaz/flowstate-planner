@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planFlow, Task, UserState, getLocalTimeContext, getTaskEffort, getTaskTag } from "./flowEngine";
+import { buildPaceProfile, getTrackedSeconds, planFlow, Task, UserState, getLocalTimeContext, getTaskEffort, getTaskTag } from "./flowEngine";
 
 const baseTask: Task = {
   id: "task-1",
@@ -152,6 +152,18 @@ describe("planFlow", () => {
     expect(getTaskEffort(stale)).toBe("Low");
     expect(result.doNow[0]).toMatchObject({ id: stale.id });
     expect(result.doNow[0].reason).toContain("Needs 2/5 energy");
+  });
+
+  it("learns category pace from completed timers and resumes running elapsed time", () => {
+    const completed = { ...baseTask, completed: true, actual_seconds: 1200 };
+    expect(buildPaceProfile([completed])).toMatchObject({
+      "Deep Work": { averageSeconds: 1200, samples: 1 },
+    });
+    expect(getTrackedSeconds({
+      ...baseTask,
+      actual_seconds: 120,
+      timer_started_at: "2026-10-10T09:00:00.000Z",
+    }, new Date("2026-10-10T09:01:30.000Z").getTime())).toBe(210);
   });
 
   it("returns a value-based reason for every placement bucket", () => {
